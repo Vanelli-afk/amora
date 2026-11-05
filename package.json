@@ -17,7 +17,6 @@
     "test:watch": "vitest",
     "test:e2e": "playwright test",
     "setup": "node scripts/setup-env.mjs && node scripts/db.mjs up",
-    "design:extract": "node scripts/extract-design.mjs",
     "db:up": "node scripts/db.mjs up",
     "db:down": "node scripts/db.mjs down",
     "db:status": "node scripts/db.mjs status",

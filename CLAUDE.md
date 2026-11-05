@@ -45,7 +45,7 @@ src/
 public/sw.js      service worker: push e página offline; nunca guarda dados privados
 e2e/              testes de navegador
 drizzle/          migrações geradas
-docs/design/      telas extraídas de amora-design.html (npm run design:extract)
+docs/design/      telas e CSS extraídos do design original, para consulta
 ```
 
 ## Modelo de dados
