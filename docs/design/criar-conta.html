@@ -1,0 +1,40 @@
+
+<div class="paper {{themeCls}}" style="min-height:800px;display:flex;flex-wrap:wrap;align-items:stretch">
+<section style="flex:1 1 560px;min-width:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;padding:48px 40px">
+  <svg viewBox="0 0 420 250" width="520" height="310" role="img" aria-label="Caderno aberto com uma plantinha ao lado" style="display:block;max-width:100%;height:auto">
+    <ellipse cx="210" cy="238" rx="176" ry="9" fill="#4A3B33" opacity=".09"></ellipse>
+    <path d="M30 34Q120 18 206 40V224Q120 206 30 222Z" fill="#FFFCF5" stroke="#D9C8A6" stroke-width="2.5" stroke-linejoin="round"></path>
+    <path d="M214 40Q300 18 390 34V222Q300 206 214 224Z" fill="#FFFCF5" stroke="#D9C8A6" stroke-width="2.5" stroke-linejoin="round"></path>
+    <g stroke="#E8DCC2" stroke-width="2.5" stroke-linecap="round"><path d="M52 98H184M52 124H184M52 150H184M52 176H150M238 98H370M238 124H370M238 150H336M238 176H356"></path></g>
+    <path d="M240 94h96" stroke="#FBE58A" stroke-width="10" stroke-linecap="round" opacity=".9"></path>
+    <text x="52" y="76" font-family="Caveat,cursive" font-size="30" font-weight="600" fill="#BE4B33">Primeira página</text>
+    <g fill="none" stroke="#B9A57F" stroke-width="4" stroke-linecap="round"><path d="M198 52h20M198 80h20M198 108h20M198 136h20M198 164h20M198 192h20"></path></g>
+    <path d="M356 50l4 12 12 4-12 4-4 12-4-12-12-4 12-4z" fill="#F0B93A"></path>
+    <g transform="translate(318 132) scale(.95)"><path d="M32 52C32 38 26 30 14 26c-1 12 5 22 18 26z" fill="#9CBF93"></path><path d="M32 52c0-16 7-26 20-30 1 14-6 26-20 30z" fill="#7FA877"></path><path d="M32 52c-1-12 1-22 6-32-7 6-9 18-6 32z" fill="#B7D3AE"></path><path d="M18 52h28l-3 22a4 4 0 01-4 3.5H25a4 4 0 01-4-3.5L18 52z" fill="#E3A07E"></path><rect x="15" y="48" width="34" height="8" rx="3" fill="#D98F6B"></rect></g>
+  </svg>
+  <h1 class="ser" style="font-size:56px;font-weight:700;color:var(--coral-ink);line-height:1;margin-top:10px">Diário</h1>
+  <p class="hand" style="font-size:32px;color:var(--tx2)">cada dia, uma página nova</p>
+</section>
+<section style="flex:1 1 440px;min-width:0;display:flex;align-items:center;justify-content:center;padding:40px">
+  <div class="card lg" style="width:100%;max-width:420px;padding:32px;border-radius:24px;box-shadow:var(--sh2)">
+    <h2 class="ser" style="font-size:30px;font-weight:600;line-height:1.15">Criar conta</h2>
+    <p class="t2" style="margin:4px 0 20px">Vamos abrir o seu caderno.</p>
+    <div class="col g16">
+      <div><label class="lbl" for="no">Nome</label><div class="inw"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8.5" r="3.8"></circle><path d="M4.5 20c.8-3.6 3.8-5.5 7.5-5.5s6.7 1.9 7.5 5.5"></path></svg><input id="no" class="inp" type="text" placeholder="Como quer ser chamado(a)?"></div></div>
+      <div><label class="lbl" for="em">E-mail</label><div class="inw"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="5.5" width="17" height="13" rx="3"></rect><path d="M4.5 8l7.5 5.5L19.5 8"></path></svg><input id="em" class="inp" type="email" placeholder="voce@exemplo.com"></div></div>
+      <div><label class="lbl" for="se">Senha</label><div class="inw"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="10.5" width="14" height="9.5" rx="3"></rect><path d="M8.5 10.5V8a3.5 3.5 0 017 0v2.5"></path></svg><input id="se" class="inp" type="password" placeholder="Mínimo de 8 caracteres"><button class="btn btn-g btn-ic" aria-label="Mostrar senha"><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z"></path><circle cx="12" cy="12" r="2.8"></circle></svg></button></div></div>
+      <a class="btn btn-p btn-lg btn-w" href="D-Hoje.dc.html">Criar conta</a>
+      <div class="row g12 t3 sm b"><hr class="line f1"><span>ou</span><hr class="line f1"></div>
+      <a class="btn btn-s btn-lg btn-w" href="D-Hoje.dc.html"><span aria-hidden="true" style="display:grid;place-items:center;width:26px;height:26px;border-radius:50%;border:1.5px solid var(--line);font:700 15px/1 'Fraunces',serif">G</span>Continuar com Google</a>
+      <p class="tc">Já tem conta? <a class="b cr" href="D-Entrar.dc.html" style="text-decoration:underline">Entrar</a></p>
+    </div>
+  </div>
+</section>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script="" data-props="{&quot;escuro&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:false,&quot;section&quot;:&quot;Tema&quot;},&quot;$preview&quot;:{&quot;width&quot;:1280,&quot;height&quot;:800}}">
+class Component extends DCLogic {
+  renderVals() { return { themeCls: this.props.escuro ? 'dk' : '' }; }
+}
+</script>
+</body></html>

@@ -1,0 +1,16 @@
+# Opcional: para um futuro deploy ou para quem prefere Docker ao cluster de `npm run db:up`.
+services:
+  db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:54329:5432"
+    environment:
+      POSTGRES_USER: amora
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?defina DB_PASSWORD}
+      POSTGRES_DB: amora
+    volumes:
+      - amora-db:/var/lib/postgresql/data
+
+volumes:
+  amora-db:

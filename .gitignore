@@ -1,0 +1,19 @@
+node_modules/
+.next/
+out/
+next-env.d.ts
+*.tsbuildinfo
+
+# Segredos e dados locais: nunca versionar
+.env
+.env.*
+!.env.example
+.pgdata/
+.pgdata.log
+storage/
+
+# Ferramentas
+.playwright-mcp/
+playwright-report/
+test-results/
+coverage/
