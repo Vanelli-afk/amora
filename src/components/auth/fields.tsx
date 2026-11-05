@@ -79,7 +79,8 @@ export function safeNext(value: string | null | undefined): string {
   const origin = "https://amora.invalid";
   try {
     const url = new URL(value, origin);
-    return url.origin === origin ? `${url.pathname}${url.search}${url.hash}` : "/hoje";
+    // Confere o resultado, não só a entrada: "/.//site" normaliza para "//site".
+    return url.origin === origin && !url.pathname.startsWith("//") ? `${url.pathname}${url.search}${url.hash}` : "/hoje";
   } catch {
     return "/hoje";
   }
