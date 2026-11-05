@@ -87,7 +87,7 @@ Colunas `*_enc` guardam texto cifrado (AES-256-GCM por usuário e campo, `lib/cr
 ## Status atual
 
 - Roda só localmente. O deploy depende de [docs/lancamento.md](docs/lancamento.md); os planos são Vercel + Neon, o que exige adaptar `lib/storage.ts` e transformar o worker em rota com cron.
-- Testes de unidade, integração e navegador passam. Sem commits ainda.
+- Testes de unidade, integração e navegador passam.
 - Termos e privacidade são rascunhos, para revisão jurídica.
 - `npm audit`: restam avisos moderados só do `drizzle-kit` (desenvolvimento). `postcss` está forçado por `overrides`; rever ao atualizar o Next.
 
