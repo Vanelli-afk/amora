@@ -39,9 +39,21 @@ export async function processDueReminders(now: Date, send: Sender): Promise<numb
   if (!ids.length) return 0;
 
   const rows = await db.select().from(reminders).where(inArray(reminders.id, ids));
+  const present = <T,>(values: (T | null)[]) => [...new Set(values.filter((v): v is T => v !== null))];
+  const userIds = present(rows.map((r) => r.userId));
+  const taskIds = present(rows.map((r) => r.taskId));
+  const eventIds = present(rows.map((r) => r.eventId));
+  const [prefRows, taskRows, eventRows] = await Promise.all([
+    db.select({ userId: userSettings.userId, notifyEvents: userSettings.notifyEvents }).from(userSettings).where(inArray(userSettings.userId, userIds)),
+    taskIds.length ? db.select().from(tasks).where(inArray(tasks.id, taskIds)) : [],
+    eventIds.length ? db.select().from(events).where(inArray(events.id, eventIds)) : [],
+  ]);
+  const prefsByUser = new Map(prefRows.map((p) => [p.userId, p]));
+  const taskById = new Map(taskRows.map((t) => [t.id, t]));
+  const eventById = new Map(eventRows.map((e) => [e.id, e]));
+
   for (const reminder of rows) {
-    const [prefs] = await db.select({ notifyEvents: userSettings.notifyEvents }).from(userSettings)
-      .where(eq(userSettings.userId, reminder.userId));
+    const prefs = prefsByUser.get(reminder.userId);
     const url = `/dia/${reminder.date}`;
     const when = `${leadText(reminder.leadMinutes)} · ${reminder.time}`;
 
@@ -52,7 +64,7 @@ export async function processDueReminders(now: Date, send: Sender): Promise<numb
     }
 
     if (reminder.source === "task" && reminder.taskId) {
-      const [task] = await db.select().from(tasks).where(eq(tasks.id, reminder.taskId));
+      const task = taskById.get(reminder.taskId);
       if (task && !task.done && prefs?.notifyEvents !== false) {
         await send(reminder.userId, { title: decrypt(task.titleEnc, reminder.userId, "task.title"), body: when, url });
       }
@@ -60,7 +72,7 @@ export async function processDueReminders(now: Date, send: Sender): Promise<numb
     }
 
     if (reminder.source === "event" && reminder.eventId) {
-      const [event] = await db.select().from(events).where(eq(events.id, reminder.eventId));
+      const event = eventById.get(reminder.eventId);
       if (!event) continue;
       if (prefs?.notifyEvents !== false) {
         await send(reminder.userId, { title: decrypt(event.titleEnc, reminder.userId, "event.title"), body: when, url });

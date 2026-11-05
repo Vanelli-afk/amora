@@ -15,7 +15,8 @@ export function HabitsCard({ habits, today }: { habits: HabitView[]; today: stri
   const toast = useToast();
   const [adding, setAdding] = useState(false);
   const [managing, setManaging] = useState(false);
-  const [optimistic, apply] = useOptimistic(habits, (state, id: string) =>
+  const [removed, setRemoved] = useState<string[]>([]);
+  const [optimistic, apply] = useOptimistic(habits.filter((h) => !removed.includes(h.id)), (state, id: string) =>
     state.map((h) => {
       if (h.id !== id) return h;
       const doneToday = !h.doneToday;
@@ -50,8 +51,12 @@ export function HabitsCard({ habits, today }: { habits: HabitView[]; today: stri
   }
 
   async function archive(id: string) {
+    setRemoved((list) => [...list, id]);
     const result = await removeHabit({ id });
-    if (!result.ok) toast(result.error, { tone: "error" });
+    if (!result.ok) {
+      setRemoved((list) => list.filter((h) => h !== id));
+      toast(result.error, { tone: "error" });
+    }
   }
 
   return (

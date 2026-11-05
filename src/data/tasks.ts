@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, inArray, isNotNull, lte, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, isNotNull, lte, or, sql } from "drizzle-orm";
 import { db, schema } from "@/db";
 import { decrypt, encrypt } from "@/lib/crypto";
 import { syncTaskReminder } from "./reminders";
@@ -123,15 +123,15 @@ export async function clearDone(userId: string): Promise<void> {
 
 /** Grava a nova ordem de um grupo e, se a tarefa mudou de grupo, a sua nova data. */
 export async function reorderTasks(userId: string, orderedIds: string[], moved?: { id: string; date: string | null }) {
-  const owned = await db.select({ id: tasks.id }).from(tasks)
-    .where(and(eq(tasks.userId, userId), inArray(tasks.id, orderedIds)));
-  const ownedIds = new Set(owned.map((t) => t.id));
+  if (!orderedIds.length) return;
   await db.transaction(async (tx) => {
-    for (const [position, id] of orderedIds.entries()) {
-      if (!ownedIds.has(id)) continue;
-      await tx.update(tasks).set({ position }).where(and(eq(tasks.id, id), eq(tasks.userId, userId)));
-    }
-    if (moved && ownedIds.has(moved.id)) {
+    // Um único UPDATE, em vez de um por tarefa. O filtro de usuário ignora ids de outra conta.
+    await tx.execute(sql`
+      UPDATE tasks t SET position = o.ord - 1
+      FROM unnest(string_to_array(${orderedIds.join(",")}, ',')::uuid[]) WITH ORDINALITY AS o(id, ord)
+      WHERE t.id = o.id AND t.user_id = ${userId}
+    `);
+    if (moved) {
       await tx.update(tasks).set({ date: moved.date }).where(and(eq(tasks.id, moved.id), eq(tasks.userId, userId)));
     }
   });

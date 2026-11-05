@@ -1,5 +1,6 @@
 import "server-only";
 import { z } from "zod";
+import { createBreaker } from "./circuit-breaker";
 import { UserError } from "./errors";
 import { MAX_UPLOAD_BYTES } from "./storage";
 
@@ -15,6 +16,10 @@ export type BookResult = {
 // Sem e-mail nem dados da conta: as APIs só precisam saber qual aplicativo está chamando.
 const HEADERS = { "User-Agent": "Amora/1.0", Accept: "application/json" };
 const TIMEOUT_MS = 6000;
+
+const openLibraryBreaker = createBreaker();
+const googleBreaker = createBreaker();
+const coverBreaker = createBreaker();
 
 const OpenLibrary = z.object({
   docs: z.array(z.object({
@@ -74,7 +79,7 @@ async function fromGoogle(query: string): Promise<BookResult[]> {
 }
 
 export async function searchBooks(query: string): Promise<BookResult[]> {
-  const [open, google] = await Promise.allSettled([fromOpenLibrary(query), fromGoogle(query)]);
+  const [open, google] = await Promise.allSettled([openLibraryBreaker(() => fromOpenLibrary(query)), googleBreaker(() => fromGoogle(query))]);
   if (open.status === "rejected" && google.status === "rejected") {
     throw new UserError("A busca está indisponível agora. Você pode cadastrar o livro manualmente.");
   }
@@ -115,7 +120,8 @@ export async function fetchCover(source: BookResult["source"], ref: string): Pro
   try {
     for (let hop = 0; hop < 4; hop += 1) {
       if (!isAllowedCoverUrl(url)) return null;
-      const response: Response = await fetch(url, { headers: { "User-Agent": HEADERS["User-Agent"] }, redirect: "manual", signal: AbortSignal.timeout(TIMEOUT_MS) });
+      const target: string = url;
+      const response: Response = await coverBreaker(() => fetch(target, { headers: { "User-Agent": HEADERS["User-Agent"] }, redirect: "manual", signal: AbortSignal.timeout(TIMEOUT_MS) }));
       if (response.status >= 300 && response.status < 400) {
         const next: string | null = response.headers.get("location");
         if (!next) return null;

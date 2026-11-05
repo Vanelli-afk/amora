@@ -180,6 +180,7 @@ export function SecurityCard({ twoFactorEnabled }: { twoFactorEnabled: boolean }
   return (
     <section className="card lg">
       <h2 className="h3" style={{ marginBottom: 4 }}>Segurança</h2>
+      {hasPassword === null ? <div className="skl" aria-hidden="true" style={{ height: 124, margin: "6px 0" }} /> : null}
       {hasPassword ? (
         <>
           <div className="list-row">
@@ -193,6 +194,7 @@ export function SecurityCard({ twoFactorEnabled }: { twoFactorEnabled: boolean }
         </>
       ) : null}
       <h3 className="eyebrow" style={{ marginTop: 16 }}>Aparelhos conectados</h3>
+      {!sessions.length ? <div className="skl session-row" aria-hidden="true" style={{ margin: "6px 0" }} /> : null}
       {sessions.map((device) => (
         <div key={device.token} className="list-row session-row">
           <Icon name="shield" size="s" className="t2" />

@@ -7,7 +7,7 @@ import { Sticker } from "@/components/calendario/stickers";
 import { Icon } from "@/components/ui/icon";
 import { OverlayLink } from "@/components/ui/links";
 import { listStickers } from "@/data/day";
-import { listOccurrences, type EventOccurrence } from "@/data/events";
+import { listOccurrenceDays, listOccurrences, type EventOccurrence } from "@/data/events";
 import { getSettings } from "@/data/settings";
 import { countByDay } from "@/data/tasks";
 import {
@@ -41,11 +41,11 @@ export default async function MesPage({ params, searchParams }: {
 
   const prevMonth = addMonths(month, -1);
   const nextMonth = addMonths(month, 1);
-  const [events, stickers, taskCounts, neighbours] = await Promise.all([
+  const [events, stickers, taskCounts, marked] = await Promise.all([
     listOccurrences(user.id, from, to),
     listStickers(user.id, from, to),
     countByDay(user.id, from, to),
-    listOccurrences(user.id, `${prevMonth}-01`, `${addMonths(month, 2)}-01`),
+    listOccurrenceDays(user.id, `${prevMonth}-01`, `${addMonths(month, 2)}-01`),
   ]);
 
   const byDay = new Map<string, EventOccurrence[]>();
@@ -53,7 +53,6 @@ export default async function MesPage({ params, searchParams }: {
     if (!byDay.has(event.date)) byDay.set(event.date, []);
     byDay.get(event.date)?.push(event);
   }
-  const marked = new Set(neighbours.map((e) => e.date));
 
   const selected = dia && isValidDay(dia) ? dia : monthOf(today) === month ? today : `${month}-01`;
   const selectedEvents = byDay.get(selected) ?? [];

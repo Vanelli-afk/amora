@@ -1,4 +1,4 @@
-import { and, asc, eq, gte, inArray, isNotNull, lte, or } from "drizzle-orm";
+import { and, eq, gte, inArray, isNotNull, lte, or } from "drizzle-orm";
 import { db, schema } from "@/db";
 import { decrypt, decryptOpt, encrypt, encryptOpt } from "@/lib/crypto";
 import { addDays, diffDays } from "@/lib/dates";
@@ -86,6 +86,30 @@ export async function listOccurrences(userId: string, from: string, to: string):
     .sort(compare);
 }
 
+/** Só os dias com compromisso, para marcar calendários: não decifra nenhum texto. */
+export async function listOccurrenceDays(userId: string, from: string, to: string): Promise<Set<string>> {
+  const rows = await db.select({ id: events.id, date: events.date, recurrence: events.recurrence }).from(events).where(and(
+    eq(events.userId, userId),
+    lte(events.date, to),
+    or(gte(events.date, from), isNotNull(events.recurrence)),
+  ));
+  const recurringIds = rows.filter((r) => r.recurrence).map((r) => r.id);
+  const skips = recurringIds.length
+    ? await db.select().from(eventExceptions).where(and(
+        eq(eventExceptions.userId, userId),
+        inArray(eventExceptions.eventId, recurringIds),
+        gte(eventExceptions.date, from),
+        lte(eventExceptions.date, to),
+      ))
+    : [];
+  const days = new Set<string>();
+  for (const row of rows) {
+    const skipped = new Set(skips.filter((s) => s.eventId === row.id).map((s) => s.date));
+    for (const day of occurrences(row.date, row.recurrence, from, to, skipped)) days.add(day);
+  }
+  return days;
+}
+
 export async function getEvent(userId: string, id: string, occurrence?: string): Promise<EventOccurrence | null> {
   const [row] = await db.select().from(events).where(and(eq(events.id, id), eq(events.userId, userId)));
   return row ? toOccurrence(userId, row, occurrence ?? row.date) : null;
@@ -154,9 +178,4 @@ export async function deleteEvent(userId: string, id: string, occurrence: string
   }
   await db.delete(events).where(and(eq(events.id, id), eq(events.userId, userId)));
   return true;
-}
-
-export async function listAllEventsForSearch(userId: string) {
-  const rows = await db.select().from(events).where(eq(events.userId, userId)).orderBy(asc(events.date)).limit(5000);
-  return rows.map((row) => toOccurrence(userId, row, row.date));
 }

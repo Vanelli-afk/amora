@@ -2,6 +2,7 @@
 // só arquivos estáticos públicos, para nada privado sobrar no aparelho depois de sair.
 const VERSION = "amora-v1";
 const OFFLINE_URL = "/offline.html";
+const MAX_ASSETS = 150;
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
@@ -35,7 +36,12 @@ self.addEventListener("fetch", (event) => {
       caches.match(request).then((cached) => cached ?? fetch(request).then((response) => {
         if (response.ok) {
           const copy = response.clone();
-          void caches.open(VERSION).then((cache) => cache.put(request, copy));
+          void caches.open(VERSION).then(async (cache) => {
+            await cache.put(request, copy);
+            const keys = await cache.keys();
+            const extra = keys.filter((k) => new URL(k.url).pathname.startsWith("/_next/static/")).slice(0, Math.max(0, keys.length - MAX_ASSETS));
+            await Promise.all(extra.map((k) => cache.delete(k)));
+          });
         }
         return response;
       })),

@@ -9,7 +9,7 @@ import { DayTasks } from "@/components/tarefas/day-tasks";
 import { Icon, RainbowArt, SparkleArt } from "@/components/ui/icon";
 import { OverlayLink } from "@/components/ui/links";
 import { getDayEntry } from "@/data/day";
-import { listOccurrences } from "@/data/events";
+import { listOccurrenceDays, listOccurrences } from "@/data/events";
 import { listHabits } from "@/data/habits";
 import { listDayNotes } from "@/data/notes";
 import { listStandaloneReminders } from "@/data/reminders";
@@ -31,17 +31,16 @@ export async function DayView({ userId, date, settings }: { userId: string; date
   const firstOfMonth = `${month}-01`;
   const lastOfMonth = addDays(`${addMonths(month, 1)}-01`, -1);
 
-  const [entry, monthEvents, tasks, notes, habits, reminders] = await Promise.all([
+  const [entry, events, marked, tasks, notes, habits, reminders] = await Promise.all([
     getDayEntry(userId, date),
-    listOccurrences(userId, firstOfMonth, lastOfMonth),
+    listOccurrences(userId, date, date),
+    listOccurrenceDays(userId, firstOfMonth, lastOfMonth),
     listTasksForDay(userId, date, today),
     listDayNotes(userId, date),
     listHabits(userId, today),
     listStandaloneReminders(userId, date),
   ]);
 
-  const events = monthEvents.filter((e) => e.date === date);
-  const marked = new Set(monthEvents.map((e) => e.date));
   const { d } = parseDay(date);
   const prev = addDays(date, -1);
   const next = addDays(date, 1);

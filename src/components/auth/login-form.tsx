@@ -4,7 +4,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
 import { authClient, authErrorMessage } from "@/lib/auth-client";
-import { Field, FieldError, GoogleButton, PasswordField, safeNext } from "./fields";
+import { safeNext } from "@/lib/safe-next";
+import { Field, FieldError, GoogleButton, PasswordField } from "./fields";
 
 export function LoginForm({ googleEnabled, next }: { googleEnabled: boolean; next?: string }) {
   const router = useRouter();

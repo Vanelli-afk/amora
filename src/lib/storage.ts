@@ -8,6 +8,10 @@ import { UserError } from "./errors";
 export const MAX_UPLOAD_BYTES = 5 * 1024 * 1024;
 const ACCEPTED = new Set(["jpeg", "png", "webp"]);
 
+// O cache do sharp segura imagens já processadas na memória, e aqui nenhuma se repete.
+sharp.cache(false);
+sharp.concurrency(2);
+
 export type ImageKind = "cover" | "avatar";
 
 const dir = () => resolve(process.env.STORAGE_DIR ?? "./storage");
@@ -19,7 +23,7 @@ const dir = () => resolve(process.env.STORAGE_DIR ?? "./storage");
 export async function processImage(kind: ImageKind, input: Buffer): Promise<Buffer> {
   if (input.length > MAX_UPLOAD_BYTES) throw new UserError("A imagem precisa ter até 5 MB.");
   try {
-    const image = sharp(input, { limitInputPixels: 40_000_000, failOn: "error" });
+    const image = sharp(input, { limitInputPixels: 25_000_000, failOn: "error" });
     const meta = await image.metadata();
     if (!meta.format || !ACCEPTED.has(meta.format)) throw new UserError("Envie uma imagem JPG ou PNG.");
     const resized = kind === "avatar"

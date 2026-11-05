@@ -102,9 +102,17 @@ export const auth = betterAuth({
   },
   hooks: {
     before: createAuthMiddleware(async (ctx) => {
-      if (ctx.path !== "/sign-up/email") return;
-      if (ctx.body?.acceptTerms !== true) {
+      if (ctx.path === "/sign-up/email" && ctx.body?.acceptTerms !== true) {
         throw new APIError("BAD_REQUEST", { message: "TERMS_REQUIRED" });
+      }
+      if (ctx.path !== "/sign-up/email" && ctx.path !== "/update-user") return;
+      if (typeof ctx.body?.name === "string" && ctx.body.name.length > 80) {
+        throw new APIError("BAD_REQUEST", { message: "NAME_TOO_LONG" });
+      }
+      // A foto só pode apontar para um arquivo enviado aqui, nunca para um endereço externo.
+      const image = ctx.body?.image;
+      if (image !== undefined && image !== null && !/^\/api\/arquivos\/[0-9a-f-]{36}$/.test(String(image))) {
+        throw new APIError("BAD_REQUEST", { message: "INVALID_IMAGE" });
       }
     }),
   },

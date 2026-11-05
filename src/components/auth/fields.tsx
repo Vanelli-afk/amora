@@ -3,6 +3,7 @@
 import { useState, type InputHTMLAttributes } from "react";
 import { Icon, type IconName } from "@/components/ui/icon";
 import { authClient, authErrorMessage } from "@/lib/auth-client";
+import { safeNext } from "@/lib/safe-next";
 
 type FieldProps = InputHTMLAttributes<HTMLInputElement> & { id: string; label: string; icon: IconName; error?: string };
 
@@ -70,18 +71,4 @@ export function GoogleButton({ next }: { next?: string }) {
       {error ? <FieldError message={error} /> : null}
     </>
   );
-}
-
-/** Aceita apenas caminhos internos, para o parâmetro "volta" não virar redirecionamento aberto. */
-export function safeNext(value: string | null | undefined): string {
-  // O navegador descarta tabulações e quebras de linha e trata "\" como "/": "/\t/site" viraria "//site".
-  if (!value || !value.startsWith("/") || /[\x00-\x1f\x7f\\]/.test(value)) return "/hoje";
-  const origin = "https://amora.invalid";
-  try {
-    const url = new URL(value, origin);
-    // Confere o resultado, não só a entrada: "/.//site" normaliza para "//site".
-    return url.origin === origin && !url.pathname.startsWith("//") ? `${url.pathname}${url.search}${url.hash}` : "/hoje";
-  } catch {
-    return "/hoje";
-  }
 }

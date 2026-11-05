@@ -36,7 +36,7 @@ export const sendWebPush: Sender = async (userId, payload) => {
       await webPush.sendNotification(
         { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
         JSON.stringify(payload),
-        { TTL: 60 * 60 },
+        { TTL: 60 * 60, timeout: 10_000 },
       );
     } catch (error) {
       const status = (error as { statusCode?: number }).statusCode;

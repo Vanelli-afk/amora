@@ -26,7 +26,9 @@ export function BookDetail({ book, quotes, pagesGoal, streak }: { book: Book; qu
   const [addingQuote, setAddingQuote] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [error, setError] = useState<string>();
+  const [removedQuotes, setRemovedQuotes] = useState<string[]>([]);
   const [pending, start] = useTransition();
+  const visibleQuotes = quotes.filter((q) => !removedQuotes.includes(q.id));
 
   const { schedule, flush, status } = useAutosave<string>(async (text) => (await saveReview({ id: book.id, review: text })).ok);
 
@@ -119,9 +121,13 @@ export function BookDetail({ book, quotes, pagesGoal, streak }: { book: Book; qu
   }
 
   function deleteQuote(id: string) {
+    setRemovedQuotes((list) => [...list, id]);
     start(async () => {
       const result = await removeQuote({ id });
-      if (!result.ok) toast(result.error, { tone: "error" });
+      if (!result.ok) {
+        setRemovedQuotes((list) => list.filter((q) => q !== id));
+        toast(result.error, { tone: "error" });
+      }
     });
   }
 
@@ -223,9 +229,9 @@ export function BookDetail({ book, quotes, pagesGoal, streak }: { book: Book; qu
               <h2 className="h2">Citações favoritas</h2>
               <button type="button" className="btn btn-s" onClick={() => { setError(undefined); setAddingQuote(true); }}><Icon name="plus" size="s" />Adicionar citação</button>
             </div>
-            {quotes.length ? (
+            {visibleQuotes.length ? (
               <div className="row g16 wrap as">
-                {quotes.map((quote) => (
+                {visibleQuotes.map((quote) => (
                   <figure key={quote.id} className="quote rel enter" style={{ flex: "1 1 260px" }}>
                     <blockquote style={{ margin: 0 }}>“{quote.text}”</blockquote>
                     <figcaption className="row jb xs t2 b" style={{ fontFamily: "var(--font-nunito),sans-serif", marginTop: 4 }}>

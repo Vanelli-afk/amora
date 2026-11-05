@@ -1,4 +1,4 @@
-import { and, asc, eq, inArray, isNull } from "drizzle-orm";
+import { and, asc, eq, inArray, isNull, sql } from "drizzle-orm";
 import { db, schema } from "@/db";
 import { decrypt, encrypt } from "@/lib/crypto";
 import { localToUtc, todayIn } from "@/lib/dates";
@@ -78,9 +78,13 @@ export async function getTaskReminderMinutes(userId: string, taskId: string): Pr
 /** Recalcula os lembretes pendentes depois de uma troca de fuso. */
 export async function reschedulePending(userId: string, timezone: string) {
   const pending = await db.select().from(reminders).where(and(eq(reminders.userId, userId), isNull(reminders.sentAt)));
-  await Promise.all(pending.map((r) => db.update(reminders)
-    .set({ fireAt: new Date(localToUtc(r.date, r.time, timezone).getTime() - r.leadMinutes * 60_000) })
-    .where(and(eq(reminders.id, r.id), eq(reminders.userId, userId)))));
+  if (!pending.length) return;
+  const times = pending.map((r) => new Date(localToUtc(r.date, r.time, timezone).getTime() - r.leadMinutes * 60_000).toISOString());
+  await db.execute(sql`
+    UPDATE reminders r SET fire_at = v.fire_at
+    FROM unnest(string_to_array(${pending.map((p) => p.id).join(",")}, ',')::uuid[], string_to_array(${times.join(",")}, ',')::timestamptz[]) AS v(id, fire_at)
+    WHERE r.id = v.id AND r.user_id = ${userId}
+  `);
 }
 
 export async function removeEventReminders(userId: string, eventIds: string[]) {
