@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useTransition, type ChangeEvent, type FormEvent } from "react";
-import { saveSettings, subscribePush, unsubscribePush, uploadAvatar } from "@/actions/misc";
+import { saveSettings, subscribePush, unsubscribePush, uploadAvatar } from "@/actions/account";
 import { FieldError } from "@/components/auth/fields";
 import { Avatar } from "@/components/shell/navigation";
 import { Icon } from "@/components/ui/icon";

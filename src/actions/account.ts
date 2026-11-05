@@ -5,28 +5,13 @@ import { cookies, headers } from "next/headers";
 import { z } from "zod";
 import { removeFile, saveImage } from "@/data/files";
 import { removePushSubscription, savePushSubscription } from "@/data/push";
-import { createStandaloneReminder, deleteStandaloneReminder, reschedulePending } from "@/data/reminders";
-import { searchEverything } from "@/data/search";
+import { reschedulePending } from "@/data/reminders";
 import { getSettings, updateSettings } from "@/data/settings";
 import { defineAction, UserError } from "@/lib/action";
 import { auth } from "@/lib/auth";
 import { getSession } from "@/lib/session";
 import { MAX_UPLOAD_BYTES } from "@/lib/storage";
-import { zDay, zId, zTime, zTimezone, zTitle } from "@/lib/validation";
-
-export const search = defineAction("search", z.object({ query: z.string().trim().min(2).max(120) }), async ({ query }, { userId }) => {
-  return searchEverything(userId, query);
-}, { limit: { max: 60, windowSeconds: 60 } });
-
-export const addReminder = defineAction("reminder.add", z.object({ title: zTitle, date: zDay, time: zTime }), async (input, { userId }) => {
-  await createStandaloneReminder(userId, input);
-  revalidatePath("/", "layout");
-});
-
-export const removeReminder = defineAction("reminder.delete", z.object({ id: zId }), async ({ id }, { userId }) => {
-  await deleteStandaloneReminder(userId, id);
-  revalidatePath("/", "layout");
-});
+import { zTime, zTimezone } from "@/lib/validation";
 
 const ONE_YEAR = 60 * 60 * 24 * 365;
 

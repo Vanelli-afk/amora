@@ -1,4 +1,4 @@
-import { removeReminder } from "@/actions/misc";
+import { removeReminder } from "@/actions/reminders";
 import { Icon } from "@/components/ui/icon";
 import { OverlayLink } from "@/components/ui/links";
 import type { EventOccurrence } from "@/data/events";

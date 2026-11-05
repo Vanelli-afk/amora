@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, useTransition, type FormEvent, type KeyboardEvent } from "react";
 import { loadEvent, saveEvent, saveNewEvent } from "@/actions/events";
-import { addReminder } from "@/actions/misc";
+import { addReminder } from "@/actions/reminders";
 import { addNote } from "@/actions/notes";
 import { addTask, loadTask, removeTask, saveTask } from "@/actions/tasks";
 import { FieldError } from "@/components/auth/fields";

@@ -17,8 +17,18 @@ export type BookResult = {
 const HEADERS = { "User-Agent": "Amora/1.0", Accept: "application/json" };
 const TIMEOUT_MS = 6000;
 
-const openLibraryBreaker = createBreaker();
-const googleBreaker = createBreaker();
+// Resposta recusada ou fora do formato pode vir da busca digitada, não de o serviço estar mal.
+class RejectedQueryError extends Error {}
+const isUpstreamFailure = (error: unknown) => !(error instanceof RejectedQueryError || error instanceof z.ZodError);
+
+function checkResponse(response: Response) {
+  if (response.ok) return;
+  const rejected = response.status >= 400 && response.status < 500 && response.status !== 429;
+  throw rejected ? new RejectedQueryError() : new Error("Serviço de livros indisponível");
+}
+
+const openLibraryBreaker = createBreaker({ counts: isUpstreamFailure });
+const googleBreaker = createBreaker({ counts: isUpstreamFailure });
 const coverBreaker = createBreaker();
 
 const OpenLibrary = z.object({
@@ -48,7 +58,7 @@ async function fromOpenLibrary(query: string): Promise<BookResult[]> {
   url.searchParams.set("limit", "8");
   url.searchParams.set("fields", "title,author_name,number_of_pages_median,cover_i");
   const response = await fetch(url, { headers: HEADERS, signal: AbortSignal.timeout(TIMEOUT_MS) });
-  if (!response.ok) throw new Error("Open Library indisponível");
+  checkResponse(response);
   const data = OpenLibrary.parse(await response.json());
   return data.docs.map((doc) => ({
     source: "openlibrary",
@@ -67,7 +77,7 @@ async function fromGoogle(query: string): Promise<BookResult[]> {
   url.searchParams.set("maxResults", "8");
   url.searchParams.set("key", key);
   const response = await fetch(url, { headers: HEADERS, signal: AbortSignal.timeout(TIMEOUT_MS) });
-  if (!response.ok) throw new Error("Google Books indisponível");
+  checkResponse(response);
   const data = GoogleBooks.parse(await response.json());
   return (data.items ?? []).filter((i) => i.volumeInfo.title).map((item) => ({
     source: "google",

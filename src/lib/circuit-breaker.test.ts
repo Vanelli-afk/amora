@@ -39,6 +39,12 @@ describe("circuit breaker", () => {
     await expect(run(async () => 1)).rejects.toBeInstanceOf(CircuitOpenError);
   });
 
+  it("erro causado pela entrada não abre o circuito", async () => {
+    const run = createBreaker({ failures: 1, now: () => 0, counts: (e) => (e as Error).message !== "entrada" });
+    await expect(run(() => Promise.reject(new Error("entrada")))).rejects.toThrow("entrada");
+    expect(await run(async () => 1)).toBe(1);
+  });
+
   it("limita chamadas simultâneas", async () => {
     const run = createBreaker({ maxConcurrent: 1 });
     let release = () => {};

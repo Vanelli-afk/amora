@@ -3,7 +3,7 @@
 import { AnimatePresence } from "motion/react";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import { search } from "@/actions/misc";
+import { search } from "@/actions/search";
 import { Icon, type IconName } from "@/components/ui/icon";
 import { Overlay } from "@/components/ui/overlay";
 import type { SearchHit } from "@/data/search";

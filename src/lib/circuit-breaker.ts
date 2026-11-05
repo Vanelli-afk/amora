@@ -1,13 +1,20 @@
 export class CircuitOpenError extends Error {}
 
-type Options = { failures?: number; cooldownMs?: number; maxConcurrent?: number; now?: () => number };
+type Options = {
+  failures?: number;
+  cooldownMs?: number;
+  maxConcurrent?: number;
+  now?: () => number;
+  /** Só o que indica serviço doente conta; erro causado pela própria entrada não pode abrir o circuito. */
+  counts?: (error: unknown) => boolean;
+};
 
 /**
  * Protege o app de um serviço externo lento: depois de falhas seguidas, recusa na hora durante
  * um tempo, em vez de prender cada requisição até o timeout. Passado esse tempo, uma única
  * chamada testa se o serviço voltou.
  */
-export function createBreaker({ failures = 3, cooldownMs = 60_000, maxConcurrent = 8, now = Date.now }: Options = {}) {
+export function createBreaker({ failures = 3, cooldownMs = 60_000, maxConcurrent = 8, now = Date.now, counts = () => true }: Options = {}) {
   let consecutive = 0;
   let openUntil = 0;
   let probing = false;
@@ -26,8 +33,10 @@ export function createBreaker({ failures = 3, cooldownMs = 60_000, maxConcurrent
       consecutive = 0;
       return result;
     } catch (error) {
-      consecutive += 1;
-      if (consecutive >= failures) openUntil = now() + cooldownMs;
+      if (counts(error)) {
+        consecutive += 1;
+        if (consecutive >= failures) openUntil = now() + cooldownMs;
+      }
       throw error;
     } finally {
       inFlight -= 1;

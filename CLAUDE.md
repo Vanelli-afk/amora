@@ -21,6 +21,7 @@ npm run db:seed          # opcional: conta demo@amora.local / amora-demo-2026 co
 npm run dev              # http://localhost:3000
 npm run worker           # em outro terminal: envia lembretes e resumos
 
+npm run link:conta -- pessoa@exemplo.com   # link de confirmação de conta, enquanto não há e-mail
 npm run db:up            # liga o Postgres do projeto depois de reiniciar o PC (db:down desliga)
 npm run db:generate      # gera uma migração depois de mudar o schema
 npm run typecheck && npm run lint
@@ -34,7 +35,7 @@ O Postgres roda em um cluster só do projeto (`.pgdata/`, porta 54329), com os b
 
 ```
 src/
-  app/            rotas, layouts; globals.css (base do design), amora.css (responsivo e animações)
+  app/            rotas: (app) privadas, (auth) entrada, (publico) termos e privacidade; layouts; globals.css (base do design), amora.css (responsivo e animações)
   actions/        Server Actions; todas via defineAction (lib/action.ts)
   data/           únicas funções que tocam o banco; sempre recebem userId e cuidam da criptografia
   components/     ui/ (primitivos), shell/, item/, dia/, calendario/, tarefas/, notas/, livros/, perfil/
