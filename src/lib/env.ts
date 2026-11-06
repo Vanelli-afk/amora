@@ -14,30 +14,50 @@ const schema = z.object({
   GOOGLE_CLIENT_ID: optional,
   GOOGLE_CLIENT_SECRET: optional,
   SMTP_URL: optional,
-  EMAIL_FROM: z.string().default("Amora <nao-responda@amora.local>"),
+  EMAIL_FROM: optional.transform((v) => v ?? "Amora <nao-responda@amora.local>"),
   MAIL_CAPTURE_FILE: optional,
   NEXT_PUBLIC_VAPID_PUBLIC_KEY: optional,
   VAPID_PRIVATE_KEY: optional,
   VAPID_SUBJECT: optional,
   GOOGLE_BOOKS_API_KEY: optional,
-  STORAGE_DIR: z.string().default("./storage"),
+  CRON_SECRET: optional,
+  ALLOWED_EMAILS: optional,
 });
 
 export type Env = z.infer<typeof schema>;
 
+const invalid = (fields: string[]) =>
+  new Error(`Variáveis de ambiente inválidas: ${fields.join(", ")}. Em desenvolvimento, rode \`npm run setup\`; em produção, veja docs/lancamento.md.`);
+
+/** Em produção, o que só faltaria na hora de enviar um e-mail ou lembrete precisa falhar ao iniciar. */
+function productionProblems(data: Env): string[] {
+  const usesExample = (value: string | undefined) => !value || value.includes("amora.local");
+  const problems = [
+    !data.SMTP_URL && "SMTP_URL",
+    !data.NEXT_PUBLIC_VAPID_PUBLIC_KEY && "NEXT_PUBLIC_VAPID_PUBLIC_KEY",
+    !data.VAPID_PRIVATE_KEY && "VAPID_PRIVATE_KEY",
+    usesExample(data.VAPID_SUBJECT) && "VAPID_SUBJECT",
+    usesExample(data.EMAIL_FROM) && "EMAIL_FROM",
+    (data.CRON_SECRET?.length ?? 0) < 32 && "CRON_SECRET",
+    // Abrir o cadastro precisa ser uma escolha (`*`), nunca o efeito de esquecer a variável.
+    !data.ALLOWED_EMAILS && "ALLOWED_EMAILS",
+  ];
+  return problems.filter((name) => typeof name === "string");
+}
+
+export function parseEnv(raw: Record<string, string | undefined>): Env {
+  const parsed = schema.safeParse(raw);
+  if (!parsed.success) throw invalid(parsed.error.issues.map((i) => i.path.join(".")));
+  if (parsed.data.NODE_ENV === "production") {
+    const problems = productionProblems(parsed.data);
+    if (problems.length) throw invalid(problems);
+  }
+  return parsed.data;
+}
+
 let cached: Env | undefined;
 
-// Lido sob demanda: `next build` importa os módulos sem precisar de todos os segredos.
 export function env(): Env {
-  if (cached) return cached;
-  const parsed = schema.safeParse(process.env);
-  if (!parsed.success) {
-    const fields = parsed.error.issues.map((i) => i.path.join(".")).join(", ");
-    throw new Error(`Variáveis de ambiente inválidas: ${fields}. Rode \`npm run setup\`.`);
-  }
-  if (parsed.data.NODE_ENV === "production" && !parsed.data.SMTP_URL) {
-    throw new Error("SMTP_URL é obrigatória em produção.");
-  }
-  cached = parsed.data;
+  cached ??= parseEnv(process.env);
   return cached;
 }

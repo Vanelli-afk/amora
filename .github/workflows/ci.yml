@@ -1,0 +1,48 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  verificar:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: amora
+          POSTGRES_PASSWORD: amora
+          POSTGRES_DB: amora_test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U amora"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    # Valores descartáveis, só para este job: nenhum segredo real passa pelo CI.
+    env:
+      DATABASE_URL: postgres://amora:amora@127.0.0.1:5432/amora_test
+      TEST_DATABASE_URL: postgres://amora:amora@127.0.0.1:5432/amora_test
+      BETTER_AUTH_SECRET: ci-ci-ci-ci-ci-ci-ci-ci-ci-ci-ci-ci
+      BETTER_AUTH_URL: http://localhost:3000
+      DATA_ENCRYPTION_KEY: AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
+      SMTP_URL: smtp://127.0.0.1:2525
+      EMAIL_FROM: Amora <nao-responda@amora.example>
+      NEXT_PUBLIC_VAPID_PUBLIC_KEY: ci
+      VAPID_PRIVATE_KEY: ci
+      VAPID_SUBJECT: mailto:contato@amora.example
+      CRON_SECRET: ci-ci-ci-ci-ci-ci-ci-ci-ci-ci-ci-ci
+      ALLOWED_EMAILS: "*"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run lint
+      - run: npm test
+      - run: npm run build

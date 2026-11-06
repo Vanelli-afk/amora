@@ -1,6 +1,3 @@
-import { mkdtempSync, readdirSync } from "node:fs";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
 import { and, eq } from "drizzle-orm";
 import sharp from "sharp";
 import { beforeAll, describe, expect, it } from "vitest";
@@ -12,7 +9,7 @@ import { addQuote, createBook, deleteBook, deleteQuote, getBook, listBooks, list
 import { getDayEntry, saveDayEntry } from "./day";
 import { createEvent, deleteEvent, getEvent, listOccurrences, updateEvent, type EventInput } from "./events";
 import { exportUserData } from "./export";
-import { readUserFile, removeAllUserFiles, removeFile, saveImage } from "./files";
+import { readUserFile, removeFile, saveImage } from "./files";
 import { archiveHabit, createHabit, listHabits, setHabitDone } from "./habits";
 import { createNote, deleteNote, getNote, listNotes, setNotePinned, updateNote } from "./notes";
 import { createStandaloneReminder, deleteStandaloneReminder, listStandaloneReminders } from "./reminders";
@@ -28,7 +25,6 @@ let alice: string;
 let bob: string;
 
 beforeAll(async () => {
-  process.env.STORAGE_DIR = mkdtempSync(join(tmpdir(), "amora-teste-"));
   await prepareDb();
   alice = await createUser("Alice");
   bob = await createUser("Bob");
@@ -190,18 +186,20 @@ describe("arquivos enviados", () => {
     expect((await sharp(stored?.body).metadata()).exif).toBeUndefined();
   });
 
-  it("exclusão de conta apaga os arquivos do disco e, em cascata, as linhas", async () => {
+  it("o dono apaga o próprio arquivo", async () => {
+    const id = await saveImage(alice, "cover", await validPng());
+    await removeFile(alice, id);
+    expect(await readUserFile(alice, id)).toBeNull();
+  });
+
+  it("exclusão de conta apaga, em cascata, as linhas e os arquivos", async () => {
     const carol = await createUser("Carol");
     await createEvent(carol, event("Da Carol"));
     await createNote(carol, { kind: "postit", color: "y", date: null, title: null, body: "x", tags: [] });
     await saveImage(carol, "avatar", await validPng());
-    const dir = process.env.STORAGE_DIR as string;
-    const before = readdirSync(dir).length;
 
-    await removeAllUserFiles(carol);
     await db.delete(schema.user).where(eq(schema.user.id, carol));
 
-    expect(readdirSync(dir).length).toBe(before - 1);
     expect(await db.select().from(schema.events).where(eq(schema.events.userId, carol))).toEqual([]);
     expect(await db.select().from(schema.notes).where(eq(schema.notes.userId, carol))).toEqual([]);
     expect(await db.select().from(schema.files).where(eq(schema.files.userId, carol))).toEqual([]);

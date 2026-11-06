@@ -1,29 +1,116 @@
-# Checklist de lançamento público
+# Guia de deploy
 
-O Amora roda localmente. Para abrir ao público, é preciso decidir e configurar o que está abaixo. Nada disto está feito.
+Passo a passo para publicar o Amora para uso pessoal: Vercel Hobby, Supabase gratuito e cron-job.org. Os motivos e as alternativas estão em [decisoes-deploy.md](decisoes-deploy.md).
 
-## Bloqueia o lançamento
+Nada abaixo foi feito ainda. O código está preparado, mas nunca rodou nesses serviços.
 
-- [ ] **Hospedagem com HTTPS.** Sem HTTPS, o PWA e o push não funcionam em outros aparelhos.
-- [ ] **Proxy confiável na frente do app.** O limite de tentativas usa o IP de `x-forwarded-for`. Exposto direto à internet, o cliente pode falsificar esse cabeçalho e escapar do limite. O proxy precisa sobrescrever o cabeçalho, nunca repassar o valor recebido.
-- [ ] **E-mail transacional.** Definir `SMTP_URL` e `EMAIL_FROM` com domínio próprio. Em produção o app não inicia sem `SMTP_URL`.
-- [ ] **Segredos novos.** Gerar `BETTER_AUTH_SECRET`, `DATA_ENCRYPTION_KEY` e as chaves VAPID para produção. Nunca reaproveitar os de desenvolvimento.
-- [ ] **Custódia da chave.** Guardar `DATA_ENCRYPTION_KEY` em um cofre, com backup separado do banco. **Perder essa chave significa perder todos os textos, sem recuperação.**
-- [ ] **Backups cifrados do banco e de `STORAGE_DIR`**, com restauração testada.
-- [ ] **Worker sempre ativo.** `npm run worker` precisa rodar como serviço, ou os lembretes não saem.
-- [ ] **Migrações.** Rodar `npm run db:migrate` no deploy. Em produção, não usar `db:push`.
-- [ ] **Usuário do banco** sem permissão de superusuário e com TLS, se o banco estiver em outra máquina.
-- [ ] **Revisão jurídica** de `/termos` e `/privacidade`: são rascunhos, e faltam o controlador e o contato do encarregado de dados (LGPD).
-- [ ] **Login com Google** (opcional): credenciais de produção com a URL de callback do domínio final.
+## Antes de começar
 
-## Recomendado
+- [ ] Rodar `npm run typecheck && npm run lint && npm test`.
+- [ ] Rodar `npm run test:e2e:prod` com o `npm run dev` parado: usam a mesma pasta `.next`.
+- [ ] Confirmar que o CI passou no GitHub, com o Node 24.
 
-- [ ] Google Books: `GOOGLE_BOOKS_API_KEY`, para complementar a Open Library.
+## 1. Banco (Supabase)
+
+- [ ] Criar um projeto na região **South America (São Paulo)**.
+- [ ] Guardar a senha do banco no gerenciador de senhas.
+- [ ] Copiar a URL do pooler em **modo transação** (porta 6543): será `DATABASE_URL`.
+- [ ] Copiar a URL do pooler em **modo sessão** (porta 5432): será `DATABASE_URL_MIGRATIONS`.
+
+A conexão direta do plano gratuito só funciona por IPv6, e por isso não serve aqui.
+
+## 2. Segredos
+
+Gerar valores novos. **Nunca reaproveitar os do `.env` local.**
+
+```bash
+node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"   # BETTER_AUTH_SECRET
+node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"   # DATA_ENCRYPTION_KEY
+node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"      # CRON_SECRET
+npx web-push generate-vapid-keys                                              # chaves VAPID
+```
+
+- [ ] **Guardar `DATA_ENCRYPTION_KEY` em um gerenciador de senhas, separada dos backups. Perder essa chave significa perder todos os textos, sem recuperação.**
+- [ ] Guardar também `BETTER_AUTH_SECRET` e a chave privada VAPID. Trocar a primeira derruba as sessões e provavelmente invalida o 2FA; trocar a segunda invalida as inscrições de push.
+
+## 3. E-mail
+
+- [ ] Ativar a verificação em duas etapas na conta Gmail e criar uma senha de app.
+- [ ] Montar `SMTP_URL` no formato `smtps://CONTA%40gmail.com:SENHA_DE_APP@smtp.gmail.com:465`. O `@` da conta vira `%40`, e os espaços da senha de app são removidos.
+- [ ] Usar o mesmo endereço em `EMAIL_FROM`, por exemplo `Amora <CONTA@gmail.com>`.
+
+O envio pelo Gmail ainda não foi testado com o Amora.
+
+## 4. Vercel
+
+- [ ] Importar o repositório `Vanelli-afk/amora` no plano Hobby. O Next.js é detectado sozinho, e `vercel.json` já fixa a região `gru1`.
+- [ ] Desativar os deploys de preview, ou deixar as variáveis abaixo só em Production: previews não podem usar o banco de produção, e a autenticação não funciona neles.
+- [ ] Definir as variáveis de ambiente abaixo em Production.
+
+| Variável | Valor |
+|---|---|
+| `DATABASE_URL` | Pooler, modo transação (porta 6543) |
+| `DATABASE_URL_MIGRATIONS` | Pooler, modo sessão (porta 5432) |
+| `BETTER_AUTH_SECRET` | Gerado no passo 2 |
+| `BETTER_AUTH_URL` | `https://SEU-PROJETO.vercel.app`, sem barra no final |
+| `DATA_ENCRYPTION_KEY` | Gerado no passo 2 |
+| `CRON_SECRET` | Gerado no passo 2 |
+| `ALLOWED_EMAILS` | Os e-mails de vocês, separados por vírgula |
+| `SMTP_URL` | Do passo 3 |
+| `EMAIL_FROM` | Do passo 3 |
+| `NEXT_PUBLIC_VAPID_PUBLIC_KEY` | Chave pública do passo 2 |
+| `VAPID_PRIVATE_KEY` | Chave privada do passo 2 |
+| `VAPID_SUBJECT` | `mailto:CONTA@gmail.com` |
+
+Sem as variáveis exigidas, o build ou a primeira requisição falha, de propósito, com o nome das que faltam, mas nunca com os valores.
+
+- [ ] Publicar. O script `vercel-build` aplica as migrações só em produção e depois gera o build.
+
+**Se a conexão falhar por certificado** (`self-signed certificate`): o Postgres do Supabase usa uma CA própria, o que pode exigir configurar o certificado no `pg`. Não desligar a verificação para contornar.
+
+## 5. Despertador (cron-job.org)
+
+- [ ] Criar uma tarefa para `https://SEU-PROJETO.vercel.app/api/cron/tick`, a cada 1 minuto.
+- [ ] Adicionar o cabeçalho `Authorization: Bearer SEU_CRON_SECRET`.
+- [ ] Ativar o aviso por e-mail em caso de falha.
+- [ ] Conferir no histórico da tarefa que a resposta é `200`. `401` indica segredo errado.
+
+## 6. Testar de verdade
+
+- [ ] Criar as duas contas com os e-mails reais e confirmar o link recebido.
+- [ ] Tentar criar conta com outro e-mail: deve aparecer "Este e-mail não tem acesso ao Amora."
+- [ ] Trocar de dia no calendário e na visão do dia várias vezes, sem nenhum clique se perder.
+- [ ] Enviar uma foto e uma capa, e buscar um livro com capa.
+- [ ] Exportar os dados da conta.
+- [ ] Em cada iPhone (iOS 16.4 ou mais recente):
+  - [ ] Abrir o link no Safari, tocar em Compartilhar e em "Adicionar à Tela de Início".
+  - [ ] Abrir o Amora **pelo ícone** e entrar.
+  - [ ] Ativar em Perfil › Notificações › Neste aparelho.
+  - [ ] Criar um lembrete para daqui a 3 minutos, bloquear o celular e conferir se chega.
+
+## 7. Backup
+
+- [ ] Fazer um dump periódico e guardá-lo cifrado, fora do Supabase, porque é o diário de vocês:
+
+```bash
+pg_dump "URL_DO_MODO_SESSAO" --format=custom --file=amora.dump
+```
+
+- [ ] **Restaurar uma vez em um banco limpo** e abrir o app apontando para ele, para confirmar que os textos são decifrados com a chave guardada.
+
+## Depois de publicar
+
+- Observar se alguma tarefa volta à ordem antiga depois de reordenar: veja "Em aberto" em [decisoes-deploy.md](decisoes-deploy.md).
+- Olhar o uso do banco no painel do Supabase depois de alguns dias.
+- Rodar `npm audit` e atualizar dependências de tempos em tempos.
+
+## Se um dia abrir para outras pessoas
+
+Tudo isto passa a ser obrigatório:
+
+- [ ] Revisão jurídica de `/termos` e `/privacidade`, com os itens de [decisoes-deploy.md](decisoes-deploy.md).
+- [ ] Domínio próprio com e-mail transacional, SPF, DKIM e DMARC.
+- [ ] Rever `ALLOWED_EMAILS` e o plano Hobby, que não permite uso comercial.
 - [ ] Monitoramento de erros **sem conteúdo do usuário** nos eventos.
-- [ ] Limitar a taxa também no proxy, como segunda barreira.
-- [ ] RLS no Postgres como segunda barreira de isolamento (ficou de fora de propósito; a proteção atual é a camada `src/data` com testes de acesso cruzado).
-- [ ] `npm audit` e atualização de dependências em rotina.
-
-## Testar push em um celular antes do lançamento
-
-Push exige HTTPS. Use um túnel para o servidor local e ajuste `BETTER_AUTH_URL` para o endereço dele. No iPhone, o push só funciona com o app adicionado à Tela de Início.
+- [ ] Limite de taxa também na borda, e RLS no Postgres como segunda barreira de isolamento.
+- [ ] Aumentar o HSTS (hoje 30 dias, sem preload) quando o domínio estiver estável.

@@ -11,7 +11,8 @@ if (!process.env.DATABASE_URL) {
   }
 }
 
-const url = process.env.DATABASE_URL;
+// Migrações precisam manter a sessão entre comandos, o que o pooler em modo transação não faz.
+const url = process.env.DATABASE_URL_MIGRATIONS || process.env.DATABASE_URL;
 if (!url) throw new Error("DATABASE_URL não definida. Rode `npm run setup`.");
 
 export default defineConfig({

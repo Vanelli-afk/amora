@@ -1,12 +1,13 @@
 import { sql } from "drizzle-orm";
 import {
-  bigint, boolean, date, doublePrecision, index, integer, jsonb, pgEnum, pgTable, primaryKey, smallint, text,
+  bigint, boolean, customType, date, doublePrecision, index, integer, jsonb, pgEnum, pgTable, primaryKey, smallint, text,
   timestamp, uniqueIndex, uuid, varchar,
 } from "drizzle-orm/pg-core";
 
 const ts = (name: string) => timestamp(name, { withTimezone: true });
 const createdAt = () => ts("created_at").notNull().defaultNow();
 const updatedAt = () => ts("updated_at").notNull().defaultNow().$onUpdateFn(() => new Date());
+const bytea = customType<{ data: Buffer; driverData: Buffer }>({ dataType: () => "bytea" });
 
 /* ---------- Better Auth ---------- */
 
@@ -195,7 +196,7 @@ export const files = pgTable("files", {
   kind: fileKindEnum("kind").notNull(),
   mime: text("mime").notNull(),
   size: integer("size").notNull(),
-  storageKey: text("storage_key").notNull().unique(),
+  body: bytea("body").notNull(),
   createdAt: createdAt(),
 }, (t) => [index("files_user_idx").on(t.userId)]);
 

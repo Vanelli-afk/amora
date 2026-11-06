@@ -21,6 +21,7 @@ const MESSAGES: Record<string, string> = {
   INVALID_PASSWORD: "Senha incorreta.",
   INVALID_TOKEN: "Este link expirou ou já foi usado. Peça um novo.",
   TERMS_REQUIRED: "Para continuar, aceite os termos e a política de privacidade.",
+  EMAIL_NOT_ALLOWED: "Este e-mail não tem acesso ao Amora.",
   INVALID_TWO_FACTOR_AUTHENTICATION: "Código incorreto.",
   INVALID_CODE: "Código incorreto.",
   TOO_MANY_REQUESTS: "Muitas tentativas. Espere um pouco e tente de novo.",

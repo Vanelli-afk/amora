@@ -9,6 +9,7 @@ import { TransitionLink } from "@/components/ui/links";
 import { ChipRadio } from "@/components/ui/pickers";
 import { useToast } from "@/components/ui/toast";
 import type { BookResult } from "@/lib/book-search";
+import { MAX_UPLOAD_BYTES, UPLOAD_TOO_LARGE } from "@/lib/upload-limit";
 
 type Shelf = "reading" | "next" | "finished";
 
@@ -17,8 +18,6 @@ const SHELVES = [
   { id: "next", label: "Próximos" },
   { id: "finished", label: "Terminados" },
 ] as const;
-
-const MAX_BYTES = 5 * 1024 * 1024;
 
 function hash(title: string) {
   let value = 0;
@@ -87,8 +86,8 @@ export function AddBook({ initialShelf }: { initialShelf: Shelf }) {
       setPreview(null);
       return;
     }
-    if (file.size > MAX_BYTES) {
-      setError("A imagem precisa ter até 5 MB.");
+    if (file.size > MAX_UPLOAD_BYTES) {
+      setError(UPLOAD_TOO_LARGE);
       event.target.value = "";
       setPreview(null);
       return;
@@ -180,7 +179,7 @@ export function AddBook({ initialShelf }: { initialShelf: Shelf }) {
                 {/* eslint-disable-next-line @next/next/no-img-element -- pré-visualização local (blob) */}
                 {preview ? <img src={preview} alt="Pré-visualização da capa" /> : <Icon name="upload" size="l" />}
                 {preview ? "Trocar capa" : "Enviar capa"}
-                <span className="xs t3">JPG ou PNG, até 5 MB</span>
+                <span className="xs t3">JPG ou PNG, até 4 MB</span>
               </label>
             </div>
             {error ? <FieldError message={error} /> : null}

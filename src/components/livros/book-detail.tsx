@@ -11,6 +11,7 @@ import { Overlay } from "@/components/ui/overlay";
 import { useToast } from "@/components/ui/toast";
 import { useAutosave } from "@/components/ui/use-autosave";
 import type { Book, Quote } from "@/data/books";
+import { MAX_UPLOAD_BYTES, UPLOAD_TOO_LARGE } from "@/lib/upload-limit";
 import { CoverArt, coverClass, coverTransition } from "./cover";
 
 const SHELF_LABEL: Record<Book["shelf"], string> = { reading: "Lendo agora", next: "Próximos", finished: "Terminados" };
@@ -96,6 +97,10 @@ export function BookDetail({ book, quotes, pagesGoal, streak }: { book: Book; qu
   function onCover(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
     if (!file) return;
+    if (file.size > MAX_UPLOAD_BYTES) {
+      toast(UPLOAD_TOO_LARGE, { tone: "error" });
+      return;
+    }
     const form = new FormData();
     form.set("id", book.id);
     form.set("capa", file);
@@ -256,7 +261,7 @@ export function BookDetail({ book, quotes, pagesGoal, streak }: { book: Book; qu
               <div><label className="lbl" htmlFor="ed-p">Páginas</label><input id="ed-p" name="paginas" className="inp num" type="number" min={1} max={50000} defaultValue={book.pages ?? ""} /></div>
               <label className="upl" style={{ minHeight: 76 }}>
                 <input className="sr" type="file" accept="image/jpeg,image/png,image/webp" onChange={onCover} />
-                <Icon name="upload" />Trocar capa<span className="xs t3">JPG ou PNG, até 5 MB</span>
+                <Icon name="upload" />Trocar capa<span className="xs t3">JPG ou PNG, até 4 MB</span>
               </label>
               {error ? <FieldError message={error} /> : null}
               <div className="row g8" style={{ justifyContent: "flex-end" }}>

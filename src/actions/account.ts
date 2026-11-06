@@ -10,7 +10,7 @@ import { getSettings, updateSettings } from "@/data/settings";
 import { defineAction, UserError } from "@/lib/action";
 import { auth } from "@/lib/auth";
 import { getSession } from "@/lib/session";
-import { MAX_UPLOAD_BYTES } from "@/lib/storage";
+import { MAX_UPLOAD_BYTES, UPLOAD_TOO_LARGE } from "@/lib/upload-limit";
 import { zTime, zTimezone } from "@/lib/validation";
 
 const ONE_YEAR = 60 * 60 * 24 * 365;
@@ -53,7 +53,7 @@ export const unsubscribePush = defineAction("push.unsubscribe", z.object({ endpo
 export const uploadAvatar = defineAction("profile.avatar", z.instanceof(FormData), async (form, { userId }) => {
   const file = form.get("foto");
   if (!(file instanceof File) || file.size === 0) throw new UserError("Escolha uma imagem.");
-  if (file.size > MAX_UPLOAD_BYTES) throw new UserError("A imagem precisa ter até 5 MB.");
+  if (file.size > MAX_UPLOAD_BYTES) throw new UserError(UPLOAD_TOO_LARGE);
   const previous = (await getSession())?.user.image?.match(/^\/api\/arquivos\/([0-9a-f-]{36})$/)?.[1];
   const id = await saveImage(userId, "avatar", Buffer.from(await file.arrayBuffer()));
   await auth.api.updateUser({ headers: await headers(), body: { image: `/api/arquivos/${id}` } });

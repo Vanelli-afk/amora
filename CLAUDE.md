@@ -27,9 +27,10 @@ npm run db:generate      # gera uma migração depois de mudar o schema
 npm run typecheck && npm run lint
 npm test                 # unidade e integração (banco amora_test)
 npm run test:e2e         # navegador, desktop e celular; pare o `npm run dev` antes: usam a mesma .next
+npm run test:e2e:prod    # o mesmo no build de produção; pega o que `next dev` não mostra. Rode antes de cada deploy
 ```
 
-O Postgres roda em um cluster só do projeto (`.pgdata/`, porta 54329), com os binários do Postgres 17 da máquina; o `docker-compose.yml` fica para um futuro deploy. Antes de abrir ao público, siga [docs/lancamento.md](docs/lancamento.md).
+O Postgres local roda em um cluster só do projeto (`.pgdata/`, porta 54329), com os binários do Postgres 17 da máquina. Para publicar, siga [docs/lancamento.md](docs/lancamento.md); os motivos e os caminhos de volta estão em [docs/decisoes-deploy.md](docs/decisoes-deploy.md).
 
 ## Estrutura
 
@@ -40,8 +41,8 @@ src/
   data/           únicas funções que tocam o banco; sempre recebem userId e cuidam da criptografia
   components/     ui/ (primitivos), shell/, item/, dia/, calendario/, tarefas/, notas/, livros/, perfil/
   db/             schema.ts, index.ts, seed.ts
-  lib/            auth, crypto, dates, timeline, recurrence, holidays, streak, storage, book-search…
-  worker/         lembretes, resumos e limpezas
+  lib/            auth, crypto, dates, timeline, recurrence, holidays, streak, image, allowed-emails, book-search…
+  worker/         lembretes, resumos e limpezas, em desenvolvimento; em produção, a rota api/cron/tick chama o mesmo ciclo
   middleware.ts   CSP com nonce e redirecionamento de quem não tem sessão
 public/sw.js      service worker: push e página offline; nunca guarda dados privados
 e2e/              testes de navegador
@@ -62,7 +63,8 @@ Colunas `*_enc` guardam texto cifrado (AES-256-GCM por usuário e campo, `lib/cr
 - `habits` + `habit_logs`: a sequência é calculada, não armazenada
 - `books` + `book_quotes` + `reading_logs`: estante (`reading` / `next` / `finished`), progresso, nota, resenha, citações
 - `reminders`: `fire_at` em UTC; dia, hora e antecedência permitem recalcular ao trocar de fuso
-- `push_subscriptions`, `files`, `action_limits`
+- `files`: imagens em WebP, com os bytes na própria linha (`body`). Selecione `body` só ao servir o arquivo
+- `push_subscriptions`, `action_limits`
 
 ## Convenções
 
@@ -70,6 +72,8 @@ Colunas `*_enc` guardam texto cifrado (AES-256-GCM por usuário e campo, `lib/cr
 - Texto escrito pelo usuário vai cifrado: nunca em coluna comum, nunca em log. Sem `dangerouslySetInnerHTML`.
 - Em arquivos `"use server"`, schemas com funções (`.refine`, `.transform`) ficam em constantes fora do `export`. Constantes usadas por Server Components não podem vir de módulos `"use client"`.
 - Não usar `view-transition-name` dentro de layout `columns`: derruba o renderizador do Chromium.
+- Não colocar `loading.tsx` acima de rotas dinâmicas: em produção, trocar de dia ficava preso sem erro nenhum. Veja [docs/decisoes-deploy.md](docs/decisoes-deploy.md). `compress: false` no `next.config.ts` existe para o teste local não esconder esse tipo de bug.
+- Mudou algo que só existe em produção (CSP, cookies, cabeçalhos, navegação)? Rode `npm run test:e2e:prod`: `next dev` não mostra.
 - Datas de dia são `date` do Postgres como string `YYYY-MM-DD`, no fuso do usuário (America/Sao_Paulo). Não converter via `Date` para evitar deslocamento de dia.
 - Mutações via Server Actions com validação Zod e `revalidatePath`; UI otimista (`useOptimistic`) para marcar tarefas e trocar de dia sem travar.
 - Server Components por padrão; `"use client"` só onde há interação.
@@ -86,16 +90,17 @@ Colunas `*_enc` guardam texto cifrado (AES-256-GCM por usuário e campo, `lib/cr
 
 ## Status atual
 
-- Roda só localmente. O deploy depende de [docs/lancamento.md](docs/lancamento.md); os planos são Vercel + Neon, o que exige adaptar `lib/storage.ts` e transformar o worker em rota com cron.
-- Testes de unidade, integração e navegador passam.
-- Termos e privacidade são rascunhos, para revisão jurídica.
+- Roda só localmente. O código está preparado para publicar, para uso pessoal, em Vercel Hobby + Supabase + cron-job.org, seguindo [docs/lancamento.md](docs/lancamento.md). Nada foi publicado ainda.
+- Testes de unidade, integração e navegador passam, inclusive no build de produção. "Reordenar tarefas" falhou uma vez em dev, sem causa encontrada: veja "Em aberto" em [docs/decisoes-deploy.md](docs/decisoes-deploy.md).
+- O CI (`.github/workflows/ci.yml`) e o Node 24 ainda não rodaram; a máquina local usa a v26.
+- Termos e privacidade são rascunhos, o que só é aceitável enquanto o uso for pessoal.
 - `npm audit`: restam avisos moderados só do `drizzle-kit` (desenvolvimento). `postcss` está forçado por `overrides`; rever ao atualizar o Next.
 
 ## O que ainda não foi comprovado
 
 Implementado, mas sem verificação de ponta a ponta. Não tratar como pronto para produção:
 
-- **Notificação chegando de verdade:** só a lógica de envio foi testada, porque o navegador automatizado bloqueia notificações. Falta testar em um Chrome real: ativar em Perfil › Notificações › Neste aparelho, com `npm run worker` rodando, e criar um lembrete para daqui a 2 minutos. No celular, exige HTTPS.
+- **Notificação chegando de verdade:** só a lógica de envio foi testada, porque o navegador automatizado bloqueia notificações. Falta testar em um Chrome real: ativar em Perfil › Notificações › Neste aparelho, com `npm run worker` rodando, e criar um lembrete para daqui a 2 minutos. No celular, exige HTTPS; no iPhone, o app adicionado à Tela de Início.
 - **Busca de livros:** não testada com a Open Library nem com o Google Books de verdade, incluindo o download de capas.
 - **Login com Google:** faltam as credenciais; o botão fica oculto sem elas.
 - **Envio real de e-mail:** nenhum SMTP foi testado; em desenvolvimento, os links saem no log do servidor.
