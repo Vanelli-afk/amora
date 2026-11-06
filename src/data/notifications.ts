@@ -10,7 +10,24 @@ import { nextLocalTime } from "./settings";
 
 const { reminders, userSettings, tasks, events } = schema;
 
-const BATCH = 200;
+// Pior caso de um ciclo: 100 / 10 × 10 s de timeout = 100 s, abaixo do maxDuration da rota do cron.
+const BATCH = 100;
+const CONCURRENCY = 10;
+
+/** Cada item falha sozinho. Registra só o tipo do erro: a mensagem pode trazer dados do usuário. */
+async function forEachIsolated<T>(items: T[], work: (item: T) => Promise<void>): Promise<void> {
+  const queue = items.values();
+  const runner = async () => {
+    for (const item of queue) {
+      try {
+        await work(item);
+      } catch (error) {
+        console.error(`[notificacoes] falha em um item: ${error instanceof Error ? error.name : "erro"}`);
+      }
+    }
+  };
+  await Promise.all(Array.from({ length: CONCURRENCY }, runner));
+}
 
 function leadText(minutes: number): string {
   if (minutes <= 0) return "Agora";
@@ -52,7 +69,7 @@ export async function processDueReminders(now: Date, send: Sender): Promise<numb
   const taskById = new Map(taskRows.map((t) => [t.id, t]));
   const eventById = new Map(eventRows.map((e) => [e.id, e]));
 
-  for (const reminder of rows) {
+  await forEachIsolated(rows, async (reminder) => {
     const prefs = prefsByUser.get(reminder.userId);
     const url = `/dia/${reminder.date}`;
     const when = `${leadText(reminder.leadMinutes)} · ${reminder.time}`;
@@ -60,7 +77,7 @@ export async function processDueReminders(now: Date, send: Sender): Promise<numb
     if (reminder.source === "standalone") {
       const title = reminder.titleEnc ? decrypt(reminder.titleEnc, reminder.userId, "reminder.title") : "Lembrete";
       await send(reminder.userId, { title, body: `Lembrete · ${reminder.time}`, url });
-      continue;
+      return;
     }
 
     if (reminder.source === "task" && reminder.taskId) {
@@ -68,42 +85,53 @@ export async function processDueReminders(now: Date, send: Sender): Promise<numb
       if (task && !task.done && prefs?.notifyEvents !== false) {
         await send(reminder.userId, { title: decrypt(task.titleEnc, reminder.userId, "task.title"), body: when, url });
       }
-      continue;
+      return;
     }
 
     if (reminder.source === "event" && reminder.eventId) {
       const event = eventById.get(reminder.eventId);
-      if (!event) continue;
-      if (prefs?.notifyEvents !== false) {
-        await send(reminder.userId, { title: decrypt(event.titleEnc, reminder.userId, "event.title"), body: when, url });
-      }
-      // Série: agenda a próxima ocorrência.
-      if (event.recurrence) {
-        await syncEventReminder(reminder.userId, { ...event, recurrence: event.recurrence as Rule }, addDays(reminder.date, 1));
+      if (!event) return;
+      try {
+        if (prefs?.notifyEvents !== false) {
+          await send(reminder.userId, { title: decrypt(event.titleEnc, reminder.userId, "event.title"), body: when, url });
+        }
+      } finally {
+        // Série: agenda a próxima ocorrência mesmo se este aviso falhar, ou a série ficaria muda.
+        if (event.recurrence) {
+          await syncEventReminder(reminder.userId, { ...event, recurrence: event.recurrence as Rule }, addDays(reminder.date, 1));
+        }
       }
     }
-  }
+  });
   return rows.length;
 }
 
-async function claimDigest(column: "next_morning_at" | "next_evening_at", now: Date) {
-  // Avança o horário no mesmo UPDATE que seleciona: outro worker não envia de novo.
-  const result = await db.execute<{ user_id: string; timezone: string; morning_time: string; evening_time: string }>(sql`
-    WITH due AS (
-      SELECT user_id FROM user_settings
+/**
+ * Reivindica os resumos vencidos e já grava o próximo horário, antes de enviar: outro worker
+ * não repete o envio, e uma falha no meio custa um resumo, nunca os dos dias seguintes.
+ */
+async function claimDigest(column: "next_morning_at" | "next_evening_at", timeColumn: "morning_time" | "evening_time", now: Date) {
+  return db.transaction(async (tx) => {
+    const due = await tx.execute<{ user_id: string; timezone: string; time: string }>(sql`
+      SELECT user_id, timezone, ${sql.raw(timeColumn)} AS time FROM user_settings
       WHERE ${sql.raw(column)} IS NOT NULL AND ${sql.raw(column)} <= ${now.toISOString()}::timestamptz
       LIMIT ${BATCH}
       FOR UPDATE SKIP LOCKED
-    )
-    UPDATE user_settings s SET ${sql.raw(column)} = NULL
-    FROM due WHERE s.user_id = due.user_id
-    RETURNING s.user_id, s.timezone, s.morning_time, s.evening_time
-  `);
-  return result.rows;
+    `);
+    if (!due.rows.length) return [];
+    const ids = due.rows.map((row) => row.user_id).join(",");
+    const times = due.rows.map((row) => nextLocalTime(row.time, row.timezone, now).toISOString()).join(",");
+    await tx.execute(sql`
+      UPDATE user_settings s SET ${sql.raw(column)} = v.next_at
+      FROM unnest(string_to_array(${ids}, ','), string_to_array(${times}, ',')::timestamptz[]) AS v(user_id, next_at)
+      WHERE s.user_id = v.user_id
+    `);
+    return due.rows;
+  });
 }
 
 export async function processDigests(now: Date, send: Sender): Promise<void> {
-  for (const row of await claimDigest("next_morning_at", now)) {
+  await forEachIsolated(await claimDigest("next_morning_at", "morning_time", now), async (row) => {
     const today = todayIn(row.timezone, now);
     const occurrences = await listOccurrences(row.user_id, today, today);
     const [pending] = await db.select({ total: sql<number>`count(*)::int` }).from(tasks)
@@ -118,15 +146,18 @@ export async function processDigests(now: Date, send: Sender): Promise<void> {
       body: `${parts.join(" · ")}${first ? `. Primeiro: ${first.startTime} ${first.title}` : ""}`,
       url: "/hoje",
     });
-    await db.update(userSettings).set({ nextMorningAt: nextLocalTime(row.morning_time, row.timezone, now) })
-      .where(eq(userSettings.userId, row.user_id));
-  }
+  });
 
-  for (const row of await claimDigest("next_evening_at", now)) {
+  await forEachIsolated(await claimDigest("next_evening_at", "evening_time", now), async (row) => {
     await send(row.user_id, { title: "Reflexão da noite", body: "Como foi o seu dia? O que você aprendeu?", url: "/hoje" });
-    await db.update(userSettings).set({ nextEveningAt: nextLocalTime(row.evening_time, row.timezone, now) })
-      .where(eq(userSettings.userId, row.user_id));
-  }
+  });
+}
+
+/** Um ciclo de envio: o mesmo para o worker local e para a rota do cron. */
+export async function runNotificationCycle(now: Date, send: Sender): Promise<number> {
+  const sent = await processDueReminders(now, send);
+  await processDigests(now, send);
+  return sent;
 }
 
 export async function cleanup(now: Date): Promise<void> {

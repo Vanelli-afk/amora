@@ -2,7 +2,7 @@ import "server-only";
 import { z } from "zod";
 import { createBreaker } from "./circuit-breaker";
 import { UserError } from "./errors";
-import { MAX_UPLOAD_BYTES } from "./storage";
+import { MAX_UPLOAD_BYTES } from "./upload-limit";
 
 export type BookResult = {
   source: "openlibrary" | "google";

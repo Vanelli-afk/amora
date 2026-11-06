@@ -8,6 +8,8 @@ if (!testDb) throw new Error("TEST_DATABASE_URL não definida. Rode `npm run set
 
 export default defineConfig({
   testDir: "./e2e",
+  // Só faz sentido no build de produção: veja playwright.prod.config.ts.
+  testIgnore: ["producao.spec.ts"],
   // Compartilham banco e limites de tentativas: rodam em sequência.
   workers: 1,
   fullyParallel: false,
@@ -36,7 +38,6 @@ export default defineConfig({
       DATABASE_URL: testDb,
       BETTER_AUTH_URL: BASE_URL,
       MAIL_CAPTURE_FILE: "test-results/mail.jsonl",
-      STORAGE_DIR: "test-results/storage",
     },
   },
 });

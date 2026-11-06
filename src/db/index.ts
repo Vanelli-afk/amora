@@ -12,7 +12,8 @@ function open(): Db {
   if (!store.__amoraDb) {
     const connectionString = process.env.DATABASE_URL;
     if (!connectionString) throw new Error("DATABASE_URL não definida.");
-    store.__amoraPool = new Pool({ connectionString, max: 10 });
+    // Na Vercel cada instância abre o próprio pool; quem multiplexa as conexões é o pooler do banco.
+    store.__amoraPool = new Pool({ connectionString, max: process.env.VERCEL ? 3 : 10 });
     store.__amoraDb = drizzle(store.__amoraPool, { schema });
   }
   return store.__amoraDb;

@@ -8,6 +8,7 @@ import { Avatar } from "@/components/shell/navigation";
 import { Icon } from "@/components/ui/icon";
 import { useToast } from "@/components/ui/toast";
 import { authClient, authErrorMessage } from "@/lib/auth-client";
+import { MAX_UPLOAD_BYTES, UPLOAD_TOO_LARGE } from "@/lib/upload-limit";
 
 type Theme = "light" | "dark" | "auto";
 
@@ -43,6 +44,10 @@ export function AccountCard({ name, email, image, since }: { name: string; email
   function onPhoto(event: ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
     if (!file) return;
+    if (file.size > MAX_UPLOAD_BYTES) {
+      toast(UPLOAD_TOO_LARGE, { tone: "error" });
+      return;
+    }
     const form = new FormData();
     form.set("foto", file);
     start(async () => {

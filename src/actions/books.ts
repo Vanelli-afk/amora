@@ -8,7 +8,7 @@ import { getSettings } from "@/data/settings";
 import { defineAction, UserError } from "@/lib/action";
 import { fetchCover, searchBooks } from "@/lib/book-search";
 import { todayIn } from "@/lib/dates";
-import { MAX_UPLOAD_BYTES } from "@/lib/storage";
+import { MAX_UPLOAD_BYTES, UPLOAD_TOO_LARGE } from "@/lib/upload-limit";
 import { zDay, zId, zText } from "@/lib/validation";
 
 const shelf = z.enum(["reading", "next", "finished"]);
@@ -44,7 +44,7 @@ export const addBookFromSearch = defineAction("book.addResult", z.object({
 function readCover(form: FormData): File | null {
   const file = form.get("capa");
   if (!(file instanceof File) || file.size === 0) return null;
-  if (file.size > MAX_UPLOAD_BYTES) throw new UserError("A imagem precisa ter até 5 MB.");
+  if (file.size > MAX_UPLOAD_BYTES) throw new UserError(UPLOAD_TOO_LARGE);
   return file;
 }
 

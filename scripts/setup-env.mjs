@@ -28,6 +28,7 @@ const env = readFileSync(".env.example", "utf8")
   .replaceAll("__DB_PASSWORD__", dbPassword)
   .replace("__BETTER_AUTH_SECRET__", secret())
   .replace("__DATA_ENCRYPTION_KEY__", secret())
+  .replace("__CRON_SECRET__", randomBytes(32).toString("hex"))
   .replace("__VAPID_PUBLIC__", vapidPublic)
   .replace("__VAPID_PRIVATE__", vapidPrivate);
 

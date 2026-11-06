@@ -5,7 +5,7 @@ import { APIError, createAuthMiddleware } from "better-auth/api";
 import { nextCookies } from "better-auth/next-js";
 import { twoFactor } from "better-auth/plugins/two-factor";
 import { db, schema } from "@/db";
-import { removeAllUserFiles } from "@/data/files";
+import { isEmailAllowed } from "./allowed-emails";
 import { actionMail, sendMail } from "./email";
 import { env } from "./env";
 
@@ -73,13 +73,7 @@ export const auth = betterAuth({
           "Confirme este endereço para usá-lo na sua conta.", "Confirmar novo e-mail", url));
       },
     },
-    deleteUser: {
-      enabled: true,
-      // As linhas somem por ON DELETE CASCADE; os arquivos em disco precisam ser apagados à parte.
-      beforeDelete: async (user) => {
-        await removeAllUserFiles(user.id);
-      },
-    },
+    deleteUser: { enabled: true },
   },
   rateLimit: {
     enabled: true,
@@ -105,6 +99,10 @@ export const auth = betterAuth({
       if (ctx.path === "/sign-up/email" && ctx.body?.acceptTerms !== true) {
         throw new APIError("BAD_REQUEST", { message: "TERMS_REQUIRED" });
       }
+      // Aqui para a pessoa ver o motivo: dentro do cadastro, o Better Auth responde sucesso mesmo com o erro.
+      if (ctx.path === "/sign-up/email" && !isEmailAllowed(String(ctx.body?.email ?? ""), config.ALLOWED_EMAILS)) {
+        throw new APIError("FORBIDDEN", { message: "EMAIL_NOT_ALLOWED" });
+      }
       if (ctx.path !== "/sign-up/email" && ctx.path !== "/update-user") return;
       if (typeof ctx.body?.name === "string" && ctx.body.name.length > 80) {
         throw new APIError("BAD_REQUEST", { message: "NAME_TOO_LONG" });
@@ -120,7 +118,13 @@ export const auth = betterAuth({
     user: {
       create: {
         // Cadastro por e-mail exige o aceite acima; o Google mostra o aviso ao lado do botão.
-        before: async (user) => ({ data: { ...user, termsAcceptedAt: new Date() } }),
+        // Segunda barreira, que também cobre quem entra pela primeira vez com o Google.
+        before: async (user) => {
+          if (!isEmailAllowed(user.email, config.ALLOWED_EMAILS)) {
+            throw new APIError("FORBIDDEN", { message: "EMAIL_NOT_ALLOWED" });
+          }
+          return { data: { ...user, termsAcceptedAt: new Date() } };
+        },
         after: async (user) => {
           await db.insert(schema.userSettings).values({ userId: user.id }).onConflictDoNothing();
         },

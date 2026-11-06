@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 import { beforeAll, describe, expect, it } from "vitest";
 import { db, schema } from "@/db";
 import { createUser, prepareDb } from "@/test/db";
@@ -80,6 +80,47 @@ describe("lembretes", () => {
     expect(sent.filter((s) => s.userId === user)).toHaveLength(0);
   });
 
+  it("uma falha de envio não derruba o resto do lote", async () => {
+    const user = await createUser();
+    await createStandaloneReminder(user, { title: "Primeiro", date: "2035-04-01", time: "08:00" });
+    await createStandaloneReminder(user, { title: "Quebra", date: "2035-04-01", time: "08:01" });
+    await createStandaloneReminder(user, { title: "Último", date: "2035-04-01", time: "08:02" });
+    const { sent, send } = recorder();
+    const flaky = async (userId: string, payload: PushPayload) => {
+      if (payload.title === "Quebra") throw new Error("falha simulada");
+      await send(userId, payload);
+    };
+
+    await processDueReminders(new Date("2035-04-01T12:00:00Z"), flaky);
+
+    expect(sent.filter((s) => s.userId === user).map((s) => s.payload.title).sort()).toEqual(["Primeiro", "Último"]);
+  });
+
+  it("um texto impossível de decifrar não derruba o resto do lote", async () => {
+    const user = await createUser();
+    await createStandaloneReminder(user, { title: "Corrompido", date: "2035-05-01", time: "08:00" });
+    await db.update(schema.reminders).set({ titleEnc: "v1.invalido.invalido" }).where(eq(schema.reminders.userId, user));
+    await createStandaloneReminder(user, { title: "Inteiro", date: "2035-05-01", time: "08:01" });
+    const { sent, send } = recorder();
+
+    await processDueReminders(new Date("2035-05-01T12:00:00Z"), send);
+
+    expect(sent.filter((s) => s.userId === user).map((s) => s.payload.title)).toEqual(["Inteiro"]);
+  });
+
+  it("agenda a próxima ocorrência da série mesmo se o envio falhar", async () => {
+    const user = await createUser();
+    await createEvent(user, {
+      title: "Série", date: "2098-01-01", startTime: "09:30", endTime: null, color: "sky", location: null, notes: null,
+      recurrence: { freq: "weekly" }, reminderMinutes: 0,
+    });
+
+    await processDueReminders(new Date("2098-01-01T12:30:00Z"), async () => { throw new Error("falha simulada"); });
+
+    const open = (await pending(user)).filter((r) => !r.sentAt);
+    expect(open.map((r) => r.date)).toEqual(["2098-01-08"]);
+  });
+
   it("recalcula o horário ao trocar de fuso", async () => {
     const user = await createUser();
     await createStandaloneReminder(user, { title: "Acordar", date: "2033-07-01", time: "08:00" });
@@ -105,6 +146,27 @@ describe("resumos", () => {
 
     const [row] = await db.select().from(schema.userSettings).where(eq(schema.userSettings.userId, user));
     expect(row?.nextMorningAt?.toISOString()).toBe("2034-02-03T10:30:00.000Z");
+  });
+
+  it("continua agendado para amanhã se o envio falhar, sem derrubar os outros", async () => {
+    const broken = await createUser();
+    const healthy = await createUser();
+    const fire = new Date("2036-02-02T22:00:00Z");
+    for (const user of [broken, healthy]) {
+      await updateSettings(user, { notifyEvening: true, eveningTime: "19:00" });
+      await db.update(schema.userSettings).set({ nextEveningAt: fire }).where(eq(schema.userSettings.userId, user));
+    }
+    const { sent, send } = recorder();
+    const flaky = async (userId: string, payload: PushPayload) => {
+      if (userId === broken) throw new Error("falha simulada");
+      await send(userId, payload);
+    };
+
+    await processDigests(fire, flaky);
+
+    expect(sent.filter((s) => s.userId === healthy)).toHaveLength(1);
+    const rows = await db.select().from(schema.userSettings).where(inArray(schema.userSettings.userId, [broken, healthy]));
+    expect(rows.map((r) => r.nextEveningAt?.toISOString())).toEqual(["2036-02-03T22:00:00.000Z", "2036-02-03T22:00:00.000Z"]);
   });
 });
 
