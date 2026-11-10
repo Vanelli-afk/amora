@@ -20,6 +20,8 @@ export const saveSettings = defineAction("settings.update", z.object({
   timezone: zTimezone.optional(),
   stepGoal: z.number().int().min(100).max(200_000).optional(),
   waterGoal: z.number().int().min(250).max(10_000).optional(),
+  waterStepMl: z.number().int().min(50).max(1000).optional(),
+  sleepGoalMinutes: z.number().int().min(60).max(960).optional(),
   pagesGoal: z.number().int().min(1).max(2000).optional(),
   booksGoal: z.number().int().min(1).max(1000).optional(),
   notifyEvents: z.boolean().optional(),

@@ -55,12 +55,12 @@ docs/design/      telas e CSS extraídos do design original, para consulta
 Colunas `*_enc` guardam texto cifrado (AES-256-GCM por usuário e campo, `lib/crypto.ts`).
 
 - Auth (Better Auth): `user`, `session`, `account`, `verification`, `two_factor`, `rate_limit`
-- `user_settings`: tema, fuso, metas (passos, água em ml, páginas, livros), notificações
+- `user_settings`: tema, fuso, metas (passos, água em ml e tamanho do copo, sono em minutos, páginas, livros), notificações
 - `day_entries`: uma linha por usuário/dia (humor 1-5, água em ml, passos, sono em minutos, adesivo, gratidão, reflexão)
 - `events` + `event_exceptions`: compromissos (início/fim opcionais, cor, recorrência); editar "só este" pula o dia na série e cria um avulso
 - `tasks`: data opcional, `done`, `position`, destaque
 - `notes`: post-it (texto puro) ou nota (JSON do editor, filtrado por `sanitizeDoc`)
-- `habits` + `habit_logs`: a sequência é calculada, não armazenada
+- `habits` + `habit_logs`: a sequência (atual e recorde) é calculada, não armazenada. `habits.weekdays` é uma máscara de dias (bit 0 = domingo; 127 = todos): faltar num dia de folga não quebra a sequência (`lib/streak.ts`)
 - `books` + `book_quotes` + `reading_logs`: estante (`reading` / `next` / `finished`), progresso, nota, resenha, citações
 - `reminders`: `fire_at` em UTC; dia, hora e antecedência permitem recalcular ao trocar de fuso
 - `files`: imagens em WebP, com os bytes na própria linha (`body`). Selecione `body` só ao servir o arquivo

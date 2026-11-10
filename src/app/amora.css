@@ -363,6 +363,11 @@ dialog.host::backdrop{background:transparent}
 .val-roll{display:inline-block;animation:rise .24s var(--ease) both}
 .glass-water{fill:var(--sky-e);transition:transform .6s var(--ease)}
 .glass[data-full] .glass-water{fill:var(--sage-e)}
+.wd{display:flex;gap:4px}
+.wd button{flex:1 1 0;max-width:44px;min-height:44px;display:grid;place-items:center;padding:0;border-radius:50%;border:1.5px solid var(--line);background:var(--surf);color:var(--tx2);font:800 13px var(--font-nunito),sans-serif;transition:background-color .18s var(--ease),border-color .18s var(--ease)}
+.wd button[aria-pressed="true"]{background:var(--coral-soft);border-color:var(--coral);color:var(--coral-ink)}
+.wd button:focus-visible{outline:3px solid var(--focus)}
+.hd i.off{opacity:.4;border-style:dashed}
 @media (prefers-reduced-motion:reduce){.glass-water{transition:none}}
 .day-swap{will-change:transform,opacity}
 

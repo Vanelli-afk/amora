@@ -92,6 +92,8 @@ export async function DayView({ userId, date, settings }: { userId: string; date
           mood={entry.mood}
           waterMl={entry.waterMl}
           waterGoal={settings.waterGoal}
+          waterStep={settings.waterStepMl}
+          sleepGoal={settings.sleepGoalMinutes}
           steps={entry.steps}
           sleepMinutes={entry.sleepMinutes}
           sticker={entry.sticker}

@@ -28,6 +28,8 @@ type Props = {
   mood: number | null;
   waterMl: number;
   waterGoal: number;
+  waterStep: number;
+  sleepGoal: number;
   steps: number | null;
   sleepMinutes: number | null;
   sticker: "star" | "rainbow" | "moon" | null;
@@ -124,8 +126,8 @@ export function Metrics(props: Props) {
           <small>Água · meta {formatNumber(props.waterGoal)} ml</small>
           <span key={water} className="val val-roll num">{formatNumber(water)} ml</span>
         </div>
-        <button type="button" className="stp" aria-label={`Menos ${WATER_STEP} ml de água`} onClick={() => changeWater(-WATER_STEP)}><Icon name="minus" size="s" /></button>
-        <button type="button" className="stp" aria-label={`Mais ${WATER_STEP} ml de água`} onClick={() => changeWater(WATER_STEP)}><Icon name="plus" size="s" /></button>
+        <button type="button" className="stp" aria-label={`Menos ${props.waterStep} ml de água`} onClick={() => changeWater(-props.waterStep)}><Icon name="minus" size="s" /></button>
+        <button type="button" className="stp" aria-label={`Mais ${props.waterStep} ml de água`} onClick={() => changeWater(props.waterStep)}><Icon name="plus" size="s" /></button>
       </div>
 
       <div className="pill" style={{ paddingRight: editing === "steps" ? 10 : 0 }}>
@@ -157,7 +159,7 @@ export function Metrics(props: Props) {
         ) : (
           <button type="button" className="pill-btn" onClick={() => setEditing("sleep")}>
             <Icon name="moon" className="ic" />
-            <div><small>Sono</small><span className="val">{sleep === null ? "—" : formatSleep(sleep)}</span><span className="sr"> Editar</span></div>
+            <div><small>Sono · meta {formatSleep(props.sleepGoal)}</small><span className="val">{sleep === null ? "—" : formatSleep(sleep)}</span><span className="sr"> Editar</span></div>
           </button>
         )}
       </div>
@@ -173,7 +175,6 @@ export function Metrics(props: Props) {
   );
 }
 
-const WATER_STEP = 250;
 const MAX_WATER = 10_000;
 
 /** Copo cuja água sobe conforme se bebe; passa da meta sem estourar o desenho. */

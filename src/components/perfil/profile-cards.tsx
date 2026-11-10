@@ -257,7 +257,9 @@ const TIMEZONES = [
   ["UTC", "UTC"],
 ] as const;
 
-export function PreferencesCard({ timezone, stepGoal, waterGoal, pagesGoal, booksGoal }: { timezone: string; stepGoal: number; waterGoal: number; pagesGoal: number; booksGoal: number }) {
+export function PreferencesCard({ timezone, stepGoal, waterGoal, waterStepMl, sleepGoalMinutes, pagesGoal, booksGoal }: {
+  timezone: string; stepGoal: number; waterGoal: number; waterStepMl: number; sleepGoalMinutes: number; pagesGoal: number; booksGoal: number;
+}) {
   const toast = useToast();
   const options: readonly (readonly [string, string])[] = TIMEZONES.some(([id]) => id === timezone) ? TIMEZONES : [[timezone, timezone], ...TIMEZONES];
 
@@ -271,6 +273,13 @@ export function PreferencesCard({ timezone, stepGoal, waterGoal, pagesGoal, book
     return Number.isFinite(value) && value > 0 ? Math.round(value) : fallback;
   };
 
+  // Horas com casas decimais (7,5 h): `goal` arredondaria para inteiro.
+  const sleepMinutes = (raw: string) => {
+    const hours = Number(raw.replace(",", "."));
+    const minutes = Number.isFinite(hours) && hours > 0 ? Math.round(hours * 60) : sleepGoalMinutes;
+    return Math.min(960, Math.max(60, minutes));
+  };
+
   return (
     <section className="card lg col g16">
       <div>
@@ -281,9 +290,13 @@ export function PreferencesCard({ timezone, stepGoal, waterGoal, pagesGoal, book
       </div>
       <div className="field-row">
         <div><label className="lbl" htmlFor="meta-passos">Meta de passos</label><input id="meta-passos" className="inp num" type="number" min={100} max={200000} defaultValue={stepGoal} onBlur={(e) => void persist({ stepGoal: goal(e.target.value, stepGoal) })} /></div>
-        <div><label className="lbl" htmlFor="meta-agua">Água por dia (ml)</label><input id="meta-agua" className="inp num" type="number" min={250} max={10000} step={50} defaultValue={waterGoal} onBlur={(e) => void persist({ waterGoal: Math.min(10_000, Math.max(250, goal(e.target.value, waterGoal))) })} /></div>
         <div><label className="lbl" htmlFor="meta-paginas">Páginas por dia</label><input id="meta-paginas" className="inp num" type="number" min={1} max={2000} defaultValue={pagesGoal} onBlur={(e) => void persist({ pagesGoal: goal(e.target.value, pagesGoal) })} /></div>
         <div><label className="lbl" htmlFor="meta-livros">Livros por ano</label><input id="meta-livros" className="inp num" type="number" min={1} max={1000} defaultValue={booksGoal} onBlur={(e) => void persist({ booksGoal: goal(e.target.value, booksGoal) })} /></div>
+      </div>
+      <div className="field-row">
+        <div><label className="lbl" htmlFor="meta-agua">Meta de água (ml)</label><input id="meta-agua" className="inp num" type="number" min={250} max={10000} step={50} defaultValue={waterGoal} onBlur={(e) => void persist({ waterGoal: Math.min(10_000, Math.max(250, goal(e.target.value, waterGoal))) })} /></div>
+        <div><label className="lbl" htmlFor="meta-sono">Meta de sono (h)</label><input id="meta-sono" className="inp num" type="number" min={1} max={16} step={0.5} defaultValue={sleepGoalMinutes / 60} onBlur={(e) => void persist({ sleepGoalMinutes: sleepMinutes(e.target.value) })} /></div>
+        <div><label className="lbl" htmlFor="copo-agua">Copo (ml)</label><input id="copo-agua" className="inp num" type="number" min={50} max={1000} step={50} defaultValue={waterStepMl} onBlur={(e) => void persist({ waterStepMl: Math.min(1000, Math.max(50, goal(e.target.value, waterStepMl))) })} /></div>
       </div>
     </section>
   );

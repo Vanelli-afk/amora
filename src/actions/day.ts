@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { saveDayEntry } from "@/data/day";
-import { archiveHabit, createHabit, setHabitDone } from "@/data/habits";
+import { archiveHabit, createHabit, setHabitDone, updateHabit } from "@/data/habits";
 import { defineAction, UserError } from "@/lib/action";
 import { zDay, zId, zText, zTitle } from "@/lib/validation";
 
@@ -37,8 +37,17 @@ export const toggleHabit = defineAction("habit.toggle", z.object({ id: zId, date
   revalidatePath("/", "layout");
 });
 
-export const addHabit = defineAction("habit.add", z.object({ title: zTitle }), async ({ title }, { userId }) => {
-  await createHabit(userId, title);
+// Bit 0 = domingo. Pelo menos um dia, senão o hábito nunca valeria.
+const weekdays = z.number().int().min(1).max(127);
+
+export const addHabit = defineAction("habit.add", z.object({ title: zTitle, weekdays: weekdays.optional() }), async ({ title, weekdays: days }, { userId }) => {
+  await createHabit(userId, title, days);
+  revalidatePath("/", "layout");
+});
+
+export const editHabit = defineAction("habit.edit", z.object({ id: zId, title: zTitle.optional(), weekdays: weekdays.optional() }), async ({ id, ...patch }, { userId }) => {
+  const found = await updateHabit(userId, id, patch);
+  if (!found) throw new UserError("Hábito não encontrado.");
   revalidatePath("/", "layout");
 });
 

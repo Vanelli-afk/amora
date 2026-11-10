@@ -4,13 +4,14 @@ import { beforeAll, describe, expect, it } from "vitest";
 import { db, schema } from "@/db";
 import { decrypt } from "@/lib/crypto";
 import { UserError } from "@/lib/errors";
+import { weekdaysMask } from "@/lib/streak";
 import { createUser, prepareDb } from "@/test/db";
 import { addQuote, createBook, deleteBook, deleteQuote, getBook, listBooks, listQuotes, setProgress, updateBook } from "./books";
 import { getDayEntry, saveDayEntry } from "./day";
 import { createEvent, deleteEvent, getEvent, listDayWithMonthMarks, listOccurrenceDays, listOccurrences, updateEvent, type EventInput } from "./events";
 import { exportUserData } from "./export";
 import { readUserFile, removeFile, saveImage } from "./files";
-import { archiveHabit, createHabit, listHabits, setHabitDone } from "./habits";
+import { archiveHabit, createHabit, listHabits, setHabitDone, updateHabit } from "./habits";
 import { createNote, deleteNote, getNote, listNotes, setNotePinned, updateNote } from "./notes";
 import { createStandaloneReminder, deleteStandaloneReminder, listStandaloneReminders } from "./reminders";
 import { searchEverything } from "./search";
@@ -76,6 +77,12 @@ describe("isolamento: Bob nunca lê, altera nem apaga nada de Alice", () => {
     expect(await archiveHabit(bob, id)).toBe(false);
     expect(await listHabits(bob, DAY)).toEqual([]);
     expect((await listHabits(alice, DAY))[0]).toMatchObject({ title: "Meditar", streak: 0 });
+  });
+
+  it("editar hábito", async () => {
+    const id = await createHabit(alice, "Correr");
+    expect(await updateHabit(bob, id, { title: "invadido", weekdays: 1 })).toBe(false);
+    expect((await listHabits(alice, DAY)).find((h) => h.id === id)).toMatchObject({ title: "Correr", weekdays: 127 });
   });
 
   it("livros e citações", async () => {
@@ -203,6 +210,39 @@ describe("arquivos enviados", () => {
     expect(await db.select().from(schema.events).where(eq(schema.events.userId, carol))).toEqual([]);
     expect(await db.select().from(schema.notes).where(eq(schema.notes.userId, carol))).toEqual([]);
     expect(await db.select().from(schema.files).where(eq(schema.files.userId, carol))).toEqual([]);
+  });
+});
+
+describe("hábitos personalizados", () => {
+  const WORKDAYS = weekdaysMask([1, 2, 3, 4, 5]);
+
+  it("vale só nos dias escolhidos e a sequência atravessa a folga", async () => {
+    const hana = await createUser("Hana");
+    const id = await createHabit(hana, "Estudar", WORKDAYS);
+    // quinta, sexta e a segunda seguinte: sábado e domingo são folga.
+    for (const day of ["2026-11-05", "2026-11-06", "2026-11-09"]) await setHabitDone(hana, id, day, true);
+    const [habit] = await listHabits(hana, "2026-11-09");
+    expect(habit).toMatchObject({ weekdays: WORKDAYS, streak: 3, best: 3 });
+    expect(habit?.week.find((d) => d.day === "2026-11-07")?.scheduled).toBe(false);
+    expect(habit?.week.find((d) => d.day === "2026-11-09")?.scheduled).toBe(true);
+  });
+
+  it("sem escolher dias, o hábito vale todo dia", async () => {
+    const hugo = await createUser("Hugo");
+    await createHabit(hugo, "Alongar");
+    const [habit] = await listHabits(hugo, "2026-11-09");
+    expect(habit?.weekdays).toBe(127);
+    expect(habit?.week.every((d) => d.scheduled)).toBe(true);
+  });
+
+  it("renomear e trocar os dias mantém o histórico", async () => {
+    const ivo = await createUser("Ivo");
+    const id = await createHabit(ivo, "Ler");
+    await setHabitDone(ivo, id, "2026-11-08", true);
+    expect(await updateHabit(ivo, id, { title: "Ler 20 páginas", weekdays: WORKDAYS })).toBe(true);
+    const [habit] = await listHabits(ivo, "2026-11-09");
+    expect(habit).toMatchObject({ title: "Ler 20 páginas", weekdays: WORKDAYS });
+    expect(habit?.week.find((d) => d.day === "2026-11-08")?.done).toBe(true);
   });
 });
 

@@ -5,7 +5,7 @@ import { addDays, localToUtc, todayIn } from "@/lib/dates";
 
 export type Settings = typeof schema.userSettings.$inferSelect;
 export type SettingsPatch = Partial<Pick<Settings,
-  "theme" | "timezone" | "stepGoal" | "waterGoal" | "pagesGoal" | "booksGoal" |
+  "theme" | "timezone" | "stepGoal" | "waterGoal" | "waterStepMl" | "sleepGoalMinutes" | "pagesGoal" | "booksGoal" |
   "notifyEvents" | "notifyMorning" | "morningTime" | "notifyEvening" | "eveningTime"
 >>;
 

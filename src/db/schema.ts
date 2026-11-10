@@ -98,6 +98,8 @@ export const userSettings = pgTable("user_settings", {
   timezone: text("timezone").notNull().default("America/Sao_Paulo"),
   stepGoal: integer("step_goal").notNull().default(8000),
   waterGoal: integer("water_goal").notNull().default(2000),
+  waterStepMl: integer("water_step_ml").notNull().default(250),
+  sleepGoalMinutes: integer("sleep_goal_minutes").notNull().default(480),
   pagesGoal: integer("pages_goal").notNull().default(20),
   booksGoal: integer("books_goal").notNull().default(12),
   notifyEvents: boolean("notify_events").notNull().default(true),
@@ -180,6 +182,8 @@ export const habits = pgTable("habits", {
   id: uuid("id").primaryKey().defaultRandom(),
   userId: owner(),
   titleEnc: text("title_enc").notNull(),
+  // Dias da semana em que o hábito vale (bit 0 = domingo). 127 = todos, como sempre foi.
+  weekdays: integer("weekdays").notNull().default(127),
   archivedAt: ts("archived_at"),
   createdAt: createdAt(),
 }, (t) => [index("habits_user_idx").on(t.userId)]);

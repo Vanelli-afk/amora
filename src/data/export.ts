@@ -29,7 +29,7 @@ export async function exportUserData(userId: string) {
     exportadoEm: new Date().toISOString(),
     conta: user ?? null,
     preferencias: prefs ? {
-      tema: prefs.theme, fuso: prefs.timezone, metaPassos: prefs.stepGoal, metaAguaMl: prefs.waterGoal, metaPaginas: prefs.pagesGoal, metaLivros: prefs.booksGoal,
+      tema: prefs.theme, fuso: prefs.timezone, metaPassos: prefs.stepGoal, metaAguaMl: prefs.waterGoal, copoMl: prefs.waterStepMl, metaSonoMinutos: prefs.sleepGoalMinutes, metaPaginas: prefs.pagesGoal, metaLivros: prefs.booksGoal,
     } : null,
     dias: days.map((d) => ({
       data: d.date, humor: d.mood, aguaMl: d.waterMl, passos: d.steps, sonoMinutos: d.sleepMinutes, adesivo: d.sticker,
@@ -51,6 +51,7 @@ export async function exportUserData(userId: string) {
     })),
     habitos: habits.map((h) => ({
       titulo: decrypt(h.titleEnc, userId, "habit.title"),
+      diasDaSemana: h.weekdays,
       dias: habitLogs.filter((l) => l.habitId === h.id).map((l) => l.date),
     })),
     livros: books.map((b) => ({
