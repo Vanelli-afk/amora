@@ -361,6 +361,9 @@ dialog.host::backdrop{background:transparent}
 .enter{animation:rise .34s var(--ease) both}
 .pit-in{animation:stick .34s var(--ease) both}
 .val-roll{display:inline-block;animation:rise .24s var(--ease) both}
+.glass-water{fill:var(--sky-e);transition:transform .6s var(--ease)}
+.glass[data-full] .glass-water{fill:var(--sage-e)}
+@media (prefers-reduced-motion:reduce){.glass-water{transition:none}}
 .day-swap{will-change:transform,opacity}
 
 /* Troca de seção: só o conteúdo muda; a navegação fica parada. */

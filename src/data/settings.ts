@@ -1,10 +1,11 @@
 import { eq } from "drizzle-orm";
+import { cache } from "react";
 import { db, schema } from "@/db";
 import { addDays, localToUtc, todayIn } from "@/lib/dates";
 
 export type Settings = typeof schema.userSettings.$inferSelect;
 export type SettingsPatch = Partial<Pick<Settings,
-  "theme" | "timezone" | "stepGoal" | "pagesGoal" | "booksGoal" |
+  "theme" | "timezone" | "stepGoal" | "waterGoal" | "pagesGoal" | "booksGoal" |
   "notifyEvents" | "notifyMorning" | "morningTime" | "notifyEvening" | "eveningTime"
 >>;
 
@@ -17,6 +18,13 @@ export async function getSettings(userId: string): Promise<Settings> {
   if (!created) throw new Error("Falha ao criar as preferências.");
   return created;
 }
+
+/**
+ * Para desenhar páginas: o layout e a página pedem as mesmas configurações e aqui viram uma
+ * leitura só por requisição. Ações usam `getSettings`: depois de gravar, a página refeita na
+ * mesma requisição precisa ler o valor novo, não o que ficou guardado.
+ */
+export const getPageSettings = cache(getSettings);
 
 /** Próximo instante em que o relógio local do usuário marca `time`. */
 export function nextLocalTime(time: string, timezone: string, now: Date = new Date()): Date {

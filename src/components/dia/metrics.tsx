@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 import { saveMetrics } from "@/actions/day";
 import { Icon } from "@/components/ui/icon";
 import { useToast } from "@/components/ui/toast";
@@ -26,7 +26,8 @@ const MOODS = [
 type Props = {
   date: string;
   mood: number | null;
-  coffees: number;
+  waterMl: number;
+  waterGoal: number;
   steps: number | null;
   sleepMinutes: number | null;
   sticker: "star" | "rainbow" | "moon" | null;
@@ -42,12 +43,12 @@ const STICKERS = [
 export function Metrics(props: Props) {
   const toast = useToast();
   const [mood, setMood] = useState(props.mood);
-  const [coffees, setCoffees] = useState(props.coffees);
+  const [water, setWater] = useState(props.waterMl);
   const [steps, setSteps] = useState(props.steps);
   const [sleep, setSleep] = useState(props.sleepMinutes);
   const [sticker, setSticker] = useState(props.sticker);
   const [editing, setEditing] = useState<"steps" | "sleep" | null>(null);
-  const coffeeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const waterTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   async function save(patch: Parameters<typeof saveMetrics>[0], undo: () => void) {
     const result = await saveMetrics(patch);
@@ -65,12 +66,12 @@ export function Metrics(props: Props) {
   }
 
   // Agrupa cliques seguidos em uma só gravação.
-  function changeCoffees(delta: number) {
-    const next = Math.min(30, Math.max(0, coffees + delta));
-    setCoffees(next);
-    if (coffeeTimer.current) clearTimeout(coffeeTimer.current);
-    coffeeTimer.current = setTimeout(() => {
-      void save({ date: props.date, coffees: next }, () => setCoffees(props.coffees));
+  function changeWater(delta: number) {
+    const next = Math.min(MAX_WATER, Math.max(0, water + delta));
+    setWater(next);
+    if (waterTimer.current) clearTimeout(waterTimer.current);
+    waterTimer.current = setTimeout(() => {
+      void save({ date: props.date, waterMl: next }, () => setWater(props.waterMl));
     }, 400);
   }
 
@@ -117,11 +118,14 @@ export function Metrics(props: Props) {
         ))}
       </div>
 
-      <div className="pill">
-        <Icon name="coffee" className="ic" />
-        <div><small>Cafés</small><span key={coffees} className="val val-roll">{coffees}</span></div>
-        <button type="button" className="stp" aria-label="Menos um café" onClick={() => changeCoffees(-1)}><Icon name="minus" size="s" /></button>
-        <button type="button" className="stp" aria-label="Mais um café" onClick={() => changeCoffees(1)}><Icon name="plus" size="s" /></button>
+      <div className="pill" role="group" aria-label="Água do dia">
+        <WaterGlass fraction={props.waterGoal > 0 ? water / props.waterGoal : 0} />
+        <div>
+          <small>Água · meta {formatNumber(props.waterGoal)} ml</small>
+          <span key={water} className="val val-roll num">{formatNumber(water)} ml</span>
+        </div>
+        <button type="button" className="stp" aria-label={`Menos ${WATER_STEP} ml de água`} onClick={() => changeWater(-WATER_STEP)}><Icon name="minus" size="s" /></button>
+        <button type="button" className="stp" aria-label={`Mais ${WATER_STEP} ml de água`} onClick={() => changeWater(WATER_STEP)}><Icon name="plus" size="s" /></button>
       </div>
 
       <div className="pill" style={{ paddingRight: editing === "steps" ? 10 : 0 }}>
@@ -166,6 +170,24 @@ export function Metrics(props: Props) {
         ))}
       </div>
     </section>
+  );
+}
+
+const WATER_STEP = 250;
+const MAX_WATER = 10_000;
+
+/** Copo cuja água sobe conforme se bebe; passa da meta sem estourar o desenho. */
+function WaterGlass({ fraction }: { fraction: number }) {
+  const clipId = useId();
+  const level = Math.min(1, Math.max(0, fraction));
+  return (
+    <svg className="i ic glass" viewBox="0 0 24 24" width="30" height="30" aria-hidden="true" data-full={level >= 1 || undefined}>
+      <defs><clipPath id={clipId}><path d="M6.500 4.500h11l-1.300 13.600a2 2 0 01-2 1.900H9.800a2 2 0 01-2-1.900z" /></clipPath></defs>
+      <g clipPath={`url(#${clipId})`}>
+        <rect className="glass-water" x="4" y="4" width="16" height="17" style={{ transform: `translateY(${(1 - level) * 16}px)` }} />
+      </g>
+      <path d="M5.500 3.500h13l-1.500 14.800a2.500 2.500 0 01-2.500 2.200h-5a2.500 2.500 0 01-2.500-2.200z" fill="none" stroke="currentColor" strokeWidth="1.600" strokeLinejoin="round" />
+    </svg>
   );
 }
 

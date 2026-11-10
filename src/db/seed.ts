@@ -112,7 +112,7 @@ async function main() {
   }
 
   await saveDayEntry(userId, TODAY, {
-    mood: 4, coffees: 2, steps: 6842, sleepMinutes: 440,
+    mood: 4, waterMl: 1250, steps: 6842, sleepMinutes: 440,
     gratitude: "o café quentinho da manhã e a conversa com a Bia no almoço.",
   });
   await saveDayEntry(userId, d(7), { sticker: "star" });

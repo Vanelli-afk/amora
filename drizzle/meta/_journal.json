@@ -29,6 +29,20 @@
       "when": 1793936565460,
       "tag": "0003_files_body_required",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1794349173940,
+      "tag": "0004_agua_meta",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1794349181263,
+      "tag": "0005_remove_cafes",
+      "breakpoints": true
     }
   ]
 }

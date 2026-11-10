@@ -9,7 +9,7 @@ import { DayTasks } from "@/components/tarefas/day-tasks";
 import { Icon, RainbowArt, SparkleArt } from "@/components/ui/icon";
 import { OverlayLink } from "@/components/ui/links";
 import { getDayEntry } from "@/data/day";
-import { listOccurrenceDays, listOccurrences } from "@/data/events";
+import { listDayWithMonthMarks } from "@/data/events";
 import { listHabits } from "@/data/habits";
 import { listDayNotes } from "@/data/notes";
 import { listStandaloneReminders } from "@/data/reminders";
@@ -31,10 +31,9 @@ export async function DayView({ userId, date, settings }: { userId: string; date
   const firstOfMonth = `${month}-01`;
   const lastOfMonth = addDays(`${addMonths(month, 1)}-01`, -1);
 
-  const [entry, events, marked, tasks, notes, habits, reminders] = await Promise.all([
+  const [entry, { occurrences: events, marked }, tasks, notes, habits, reminders] = await Promise.all([
     getDayEntry(userId, date),
-    listOccurrences(userId, date, date),
-    listOccurrenceDays(userId, firstOfMonth, lastOfMonth),
+    listDayWithMonthMarks(userId, date, firstOfMonth, lastOfMonth),
     listTasksForDay(userId, date, today),
     listDayNotes(userId, date),
     listHabits(userId, today),
@@ -91,7 +90,8 @@ export async function DayView({ userId, date, settings }: { userId: string; date
           key={`metrics-${date}`}
           date={date}
           mood={entry.mood}
-          coffees={entry.coffees}
+          waterMl={entry.waterMl}
+          waterGoal={settings.waterGoal}
           steps={entry.steps}
           sleepMinutes={entry.sleepMinutes}
           sticker={entry.sticker}

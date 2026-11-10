@@ -257,7 +257,7 @@ const TIMEZONES = [
   ["UTC", "UTC"],
 ] as const;
 
-export function PreferencesCard({ timezone, stepGoal, pagesGoal, booksGoal }: { timezone: string; stepGoal: number; pagesGoal: number; booksGoal: number }) {
+export function PreferencesCard({ timezone, stepGoal, waterGoal, pagesGoal, booksGoal }: { timezone: string; stepGoal: number; waterGoal: number; pagesGoal: number; booksGoal: number }) {
   const toast = useToast();
   const options: readonly (readonly [string, string])[] = TIMEZONES.some(([id]) => id === timezone) ? TIMEZONES : [[timezone, timezone], ...TIMEZONES];
 
@@ -281,6 +281,7 @@ export function PreferencesCard({ timezone, stepGoal, pagesGoal, booksGoal }: { 
       </div>
       <div className="field-row">
         <div><label className="lbl" htmlFor="meta-passos">Meta de passos</label><input id="meta-passos" className="inp num" type="number" min={100} max={200000} defaultValue={stepGoal} onBlur={(e) => void persist({ stepGoal: goal(e.target.value, stepGoal) })} /></div>
+        <div><label className="lbl" htmlFor="meta-agua">Água por dia (ml)</label><input id="meta-agua" className="inp num" type="number" min={250} max={10000} step={50} defaultValue={waterGoal} onBlur={(e) => void persist({ waterGoal: Math.min(10_000, Math.max(250, goal(e.target.value, waterGoal))) })} /></div>
         <div><label className="lbl" htmlFor="meta-paginas">Páginas por dia</label><input id="meta-paginas" className="inp num" type="number" min={1} max={2000} defaultValue={pagesGoal} onBlur={(e) => void persist({ pagesGoal: goal(e.target.value, pagesGoal) })} /></div>
         <div><label className="lbl" htmlFor="meta-livros">Livros por ano</label><input id="meta-livros" className="inp num" type="number" min={1} max={1000} defaultValue={booksGoal} onBlur={(e) => void persist({ booksGoal: goal(e.target.value, booksGoal) })} /></div>
       </div>

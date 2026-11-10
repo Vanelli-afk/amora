@@ -57,33 +57,52 @@ function toOccurrence(userId: string, row: Row, date: string): EventOccurrence {
 const compare = (a: EventOccurrence, b: EventOccurrence) =>
   a.date.localeCompare(b.date) || (a.startTime ?? "").localeCompare(b.startTime ?? "") || a.title.localeCompare(b.title);
 
-export async function listOccurrences(userId: string, from: string, to: string): Promise<EventOccurrence[]> {
+/** Compromissos que podem cair em [from, to] e os dias que as exceções tiraram das séries. */
+async function loadSeries(userId: string, from: string, to: string) {
   const rows = await db.select().from(events).where(and(
     eq(events.userId, userId),
     lte(events.date, to),
     or(gte(events.date, from), isNotNull(events.recurrence)),
   ));
-  if (!rows.length) return [];
-
-  const recurringIds = rows.filter((r) => r.recurrence).map((r) => r.id);
-  const skips = recurringIds.length
-    ? await db.select().from(eventExceptions).where(and(
-        eq(eventExceptions.userId, userId),
-        inArray(eventExceptions.eventId, recurringIds),
-        gte(eventExceptions.date, from),
-        lte(eventExceptions.date, to),
-      ))
-    : [];
   const skippedBy = new Map<string, Set<string>>();
+  const recurringIds = rows.filter((r) => r.recurrence).map((r) => r.id);
+  if (!recurringIds.length) return { rows, skippedBy };
+
+  const skips = await db.select().from(eventExceptions).where(and(
+    eq(eventExceptions.userId, userId),
+    inArray(eventExceptions.eventId, recurringIds),
+    gte(eventExceptions.date, from),
+    lte(eventExceptions.date, to),
+  ));
   for (const skip of skips) {
     if (!skippedBy.has(skip.eventId)) skippedBy.set(skip.eventId, new Set());
     skippedBy.get(skip.eventId)?.add(skip.date);
   }
+  return { rows, skippedBy };
+}
 
-  return rows
-    .flatMap((row) => occurrences(row.date, row.recurrence, from, to, skippedBy.get(row.id))
-      .map((date) => toOccurrence(userId, row, date)))
-    .sort(compare);
+type Series = Awaited<ReturnType<typeof loadSeries>>;
+
+const expand = (userId: string, { rows, skippedBy }: Series, from: string, to: string) => rows
+  .flatMap((row) => occurrences(row.date, row.recurrence, from, to, skippedBy.get(row.id))
+    .map((date) => toOccurrence(userId, row, date)))
+  .sort(compare);
+
+export async function listOccurrences(userId: string, from: string, to: string): Promise<EventOccurrence[]> {
+  return expand(userId, await loadSeries(userId, from, to), from, to);
+}
+
+/**
+ * Os compromissos de um dia e os dias marcados do mês em volta, numa só ida ao banco.
+ * `date` precisa estar dentro de [from, to]. Só os textos do dia são decifrados.
+ */
+export async function listDayWithMonthMarks(userId: string, date: string, from: string, to: string) {
+  const series = await loadSeries(userId, from, to);
+  const marked = new Set<string>();
+  for (const row of series.rows) {
+    for (const day of occurrences(row.date, row.recurrence, from, to, series.skippedBy.get(row.id))) marked.add(day);
+  }
+  return { occurrences: expand(userId, series, date, date), marked };
 }
 
 /** Só os dias com compromisso, para marcar calendários: não decifra nenhum texto. */

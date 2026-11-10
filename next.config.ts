@@ -20,6 +20,9 @@ const config: NextConfig = {
   reactStrictMode: true,
   serverExternalPackages: ["sharp", "pg"],
   experimental: {
+    // Voltar a um dia visto há pouco abre da cópia do navegador, sem ir ao servidor. Toda ação limpa
+    // essa cópia (revalidatePath), então só uma edição feita em outro aparelho demora até 30 s a aparecer.
+    staleTimes: { dynamic: 30 },
     // Capa de até 4 MB (multipart) e margem para o restante do formulário, no teto de 4,5 MB da Vercel.
     serverActions: { bodySizeLimit: "4.5mb" },
   },

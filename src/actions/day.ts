@@ -10,7 +10,7 @@ import { zDay, zId, zText, zTitle } from "@/lib/validation";
 const metrics = z.object({
   date: zDay,
   mood: z.number().int().min(1).max(5).nullable().optional(),
-  coffees: z.number().int().min(0).max(30).optional(),
+  waterMl: z.number().int().min(0).max(10_000).optional(),
   steps: z.number().int().min(0).max(300_000).nullable().optional(),
   sleepMinutes: z.number().int().min(0).max(1440).nullable().optional(),
   sticker: z.enum(["star", "rainbow", "moon"]).nullable().optional(),

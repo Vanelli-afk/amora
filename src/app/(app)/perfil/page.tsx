@@ -40,7 +40,7 @@ export default async function PerfilPage() {
             eveningTime={settings.eveningTime}
             vapidKey={process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || null}
           />
-          <PreferencesCard timezone={settings.timezone} stepGoal={settings.stepGoal} pagesGoal={settings.pagesGoal} booksGoal={settings.booksGoal} />
+          <PreferencesCard timezone={settings.timezone} stepGoal={settings.stepGoal} waterGoal={settings.waterGoal} pagesGoal={settings.pagesGoal} booksGoal={settings.booksGoal} />
           <SignOutButton />
           <p className="xs t2 tc"><Link className="link" href="/privacidade">Privacidade</Link> · <Link className="link" href="/termos">Termos</Link></p>
         </div>

@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { DayView } from "@/components/dia/day-view";
-import { getSettings } from "@/data/settings";
+import { getPageSettings } from "@/data/settings";
 import { formatLongDay, isValidDay } from "@/lib/dates";
 import { requireUser } from "@/lib/session";
 
@@ -16,6 +16,6 @@ export default async function DiaPage({ params }: Props) {
   const { date } = await params;
   if (!isValidDay(date)) notFound();
   const user = await requireUser();
-  const settings = await getSettings(user.id);
+  const settings = await getPageSettings(user.id);
   return <DayView userId={user.id} date={date} settings={settings} />;
 }

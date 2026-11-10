@@ -7,7 +7,7 @@ import { UserError } from "@/lib/errors";
 import { createUser, prepareDb } from "@/test/db";
 import { addQuote, createBook, deleteBook, deleteQuote, getBook, listBooks, listQuotes, setProgress, updateBook } from "./books";
 import { getDayEntry, saveDayEntry } from "./day";
-import { createEvent, deleteEvent, getEvent, listOccurrences, updateEvent, type EventInput } from "./events";
+import { createEvent, deleteEvent, getEvent, listDayWithMonthMarks, listOccurrenceDays, listOccurrences, updateEvent, type EventInput } from "./events";
 import { exportUserData } from "./export";
 import { readUserFile, removeFile, saveImage } from "./files";
 import { archiveHabit, createHabit, listHabits, setHabitDone } from "./habits";
@@ -226,5 +226,23 @@ describe("recorrência no banco", () => {
     await deleteEvent(erin, id, "2026-11-11", "this");
     const list = await listOccurrences(erin, "2026-11-01", "2026-11-20");
     expect(list.map((e) => e.date)).toEqual(["2026-11-04", "2026-11-18"]);
+  });
+
+  it("o dia e os marcadores do mês saem de uma busca só, iguais às buscas separadas", async () => {
+    const fran = await createUser("Fran");
+    const series = await createEvent(fran, { ...event("Aula"), recurrence: { freq: "weekly" } });
+    await createEvent(fran, { ...event("Dentista"), date: "2026-11-12" });
+    await deleteEvent(fran, series, "2026-11-18", "this");
+
+    for (const day of ["2026-11-04", "2026-11-12", "2026-11-18", "2026-11-25"]) {
+      const { occurrences, marked } = await listDayWithMonthMarks(fran, day, "2026-11-01", "2026-11-30");
+      expect(occurrences).toEqual(await listOccurrences(fran, day, day));
+      expect(marked).toEqual(await listOccurrenceDays(fran, "2026-11-01", "2026-11-30"));
+    }
+
+    const gus = await createUser("Gus");
+    const other = await listDayWithMonthMarks(gus, "2026-11-04", "2026-11-01", "2026-11-30");
+    expect(other.occurrences).toEqual([]);
+    expect(other.marked.size).toBe(0);
   });
 });

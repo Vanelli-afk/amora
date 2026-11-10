@@ -6,13 +6,13 @@ import { RefreshOnReturn, ServiceWorker, Shortcuts, ThemeSync } from "@/componen
 import { BottomNav, MobileTop, Sidebar } from "@/components/shell/navigation";
 import { SearchPalette } from "@/components/shell/search-palette";
 import { ViewTransitionDone } from "@/components/ui/links";
-import { getSettings } from "@/data/settings";
+import { getPageSettings } from "@/data/settings";
 import { todayIn } from "@/lib/dates";
 import { requireUser } from "@/lib/session";
 
 export default async function AppLayout({ children }: { children: ReactNode }) {
   const user = await requireUser();
-  const settings = await getSettings(user.id);
+  const settings = await getPageSettings(user.id);
   const shellUser = { name: user.name, email: user.email, image: user.image };
 
   return (

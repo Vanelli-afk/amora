@@ -7,7 +7,7 @@ const { dayEntries } = schema;
 export type DayEntry = {
   date: string;
   mood: number | null;
-  coffees: number;
+  waterMl: number;
   steps: number | null;
   sleepMinutes: number | null;
   sticker: "star" | "rainbow" | "moon" | null;
@@ -16,14 +16,14 @@ export type DayEntry = {
 };
 
 export const emptyEntry = (date: string): DayEntry => ({
-  date, mood: null, coffees: 0, steps: null, sleepMinutes: null, sticker: null, gratitude: "", reflection: "",
+  date, mood: null, waterMl: 0, steps: null, sleepMinutes: null, sticker: null, gratitude: "", reflection: "",
 });
 
 function toEntry(userId: string, row: typeof dayEntries.$inferSelect): DayEntry {
   return {
     date: row.date,
     mood: row.mood,
-    coffees: row.coffees,
+    waterMl: row.waterMl,
     steps: row.steps,
     sleepMinutes: row.sleepMinutes,
     sticker: row.sticker,
@@ -37,7 +37,7 @@ export async function getDayEntry(userId: string, date: string): Promise<DayEntr
   return row ? toEntry(userId, row) : emptyEntry(date);
 }
 
-export type DayPatch = Partial<Pick<DayEntry, "mood" | "coffees" | "steps" | "sleepMinutes" | "sticker">> & {
+export type DayPatch = Partial<Pick<DayEntry, "mood" | "waterMl" | "steps" | "sleepMinutes" | "sticker">> & {
   gratitude?: string | null;
   reflection?: string | null;
 };

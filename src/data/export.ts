@@ -29,10 +29,10 @@ export async function exportUserData(userId: string) {
     exportadoEm: new Date().toISOString(),
     conta: user ?? null,
     preferencias: prefs ? {
-      tema: prefs.theme, fuso: prefs.timezone, metaPassos: prefs.stepGoal, metaPaginas: prefs.pagesGoal, metaLivros: prefs.booksGoal,
+      tema: prefs.theme, fuso: prefs.timezone, metaPassos: prefs.stepGoal, metaAguaMl: prefs.waterGoal, metaPaginas: prefs.pagesGoal, metaLivros: prefs.booksGoal,
     } : null,
     dias: days.map((d) => ({
-      data: d.date, humor: d.mood, cafes: d.coffees, passos: d.steps, sonoMinutos: d.sleepMinutes, adesivo: d.sticker,
+      data: d.date, humor: d.mood, aguaMl: d.waterMl, passos: d.steps, sonoMinutos: d.sleepMinutes, adesivo: d.sticker,
       gratidao: decryptOpt(d.gratitudeEnc, userId, "day.gratitude"),
       reflexao: decryptOpt(d.reflectionEnc, userId, "day.reflection"),
     })),
