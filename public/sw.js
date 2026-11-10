@@ -1,12 +1,12 @@
 // Service worker do Amora. De propósito, nunca guarda páginas nem dados:
 // só arquivos estáticos públicos, para nada privado sobrar no aparelho depois de sair.
-const VERSION = "amora-v1";
+const VERSION = "amora-v2";
 const OFFLINE_URL = "/offline.html";
 const MAX_ASSETS = 150;
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
-    caches.open(VERSION).then((cache) => cache.addAll([OFFLINE_URL, "/icons/icon-192.png"])).then(() => self.skipWaiting()),
+    caches.open(VERSION).then((cache) => cache.addAll([OFFLINE_URL, "/icons/amora-192.png"])).then(() => self.skipWaiting()),
   );
 });
 
@@ -58,8 +58,8 @@ self.addEventListener("push", (event) => {
   }
   event.waitUntil(self.registration.showNotification(payload.title, {
     body: payload.body,
-    icon: "/icons/icon-192.png",
-    badge: "/icons/icon-192.png",
+    icon: "/icons/amora-192.png",
+    badge: "/icons/amora-192.png",
     data: { url: payload.url },
   }));
 });

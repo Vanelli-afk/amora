@@ -53,6 +53,6 @@ export function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    "/((?!_next/static|_next/image|icons/|sw\\.js|offline\\.html|manifest\\.webmanifest|icon\\.svg|favicon\\.ico).*)",
+    "/((?!_next/static|_next/image|icons/|sw\\.js|offline\\.html|manifest\\.webmanifest|icon\\.png|favicon\\.ico).*)",
   ],
 };
