@@ -55,8 +55,8 @@ docs/design/      telas e CSS extraídos do design original, para consulta
 Colunas `*_enc` guardam texto cifrado (AES-256-GCM por usuário e campo, `lib/crypto.ts`).
 
 - Auth (Better Auth): `user`, `session`, `account`, `verification`, `two_factor`, `rate_limit`
-- `user_settings`: tema, fuso, metas, notificações
-- `day_entries`: uma linha por usuário/dia (humor 1-5, cafés, passos, sono em minutos, adesivo, gratidão, reflexão)
+- `user_settings`: tema, fuso, metas (passos, água em ml, páginas, livros), notificações
+- `day_entries`: uma linha por usuário/dia (humor 1-5, água em ml, passos, sono em minutos, adesivo, gratidão, reflexão)
 - `events` + `event_exceptions`: compromissos (início/fim opcionais, cor, recorrência); editar "só este" pula o dia na série e cria um avulso
 - `tasks`: data opcional, `done`, `position`, destaque
 - `notes`: post-it (texto puro) ou nota (JSON do editor, filtrado por `sanitizeDoc`)
@@ -90,7 +90,7 @@ Colunas `*_enc` guardam texto cifrado (AES-256-GCM por usuário e campo, `lib/cr
 
 ## Status atual
 
-- Roda só localmente. O código está preparado para publicar, para uso pessoal, em Vercel Hobby + Supabase + cron-job.org, seguindo [docs/lancamento.md](docs/lancamento.md). Nada foi publicado ainda.
+- Publicado para uso pessoal em https://amora-lavanda.vercel.app (Vercel Hobby + Supabase + cron-job.org), com o despertador respondendo `200`. Faltam os testes reais e o backup: passos 6 e 7 de [docs/lancamento.md](docs/lancamento.md).
 - Testes de unidade, integração e navegador passam, inclusive no build de produção. "Reordenar tarefas" falhou uma vez em dev, sem causa encontrada: veja "Em aberto" em [docs/decisoes-deploy.md](docs/decisoes-deploy.md).
 - O CI (`.github/workflows/ci.yml`) e o Node 24 ainda não rodaram; a máquina local usa a v26.
 - Termos e privacidade são rascunhos, o que só é aceitável enquanto o uso for pessoal.

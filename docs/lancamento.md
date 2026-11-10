@@ -2,7 +2,7 @@
 
 Passo a passo para publicar o Amora para uso pessoal: Vercel Hobby, Supabase gratuito e cron-job.org. Os motivos e as alternativas estão em [decisoes-deploy.md](decisoes-deploy.md).
 
-Nada abaixo foi feito ainda. O código está preparado, mas nunca rodou nesses serviços.
+**Situação em 2026-11-06:** publicado em `https://amora-lavanda.vercel.app`, com o despertador respondendo `200`. Os testes do passo 6 e o backup do passo 7 ainda não foram feitos. As caixas dos passos 1 a 4 não foram revisadas item a item.
 
 ## Antes de começar
 
@@ -70,10 +70,10 @@ Sem as variáveis exigidas, o build ou a primeira requisição falha, de propós
 
 ## 5. Despertador (cron-job.org)
 
-- [ ] Criar uma tarefa para `https://SEU-PROJETO.vercel.app/api/cron/tick`, a cada 1 minuto.
-- [ ] Adicionar o cabeçalho `Authorization: Bearer SEU_CRON_SECRET`.
+- [x] Criar uma tarefa para `https://SEU-PROJETO.vercel.app/api/cron/tick`, a cada 1 minuto.
+- [x] Adicionar o cabeçalho `Authorization: Bearer SEU_CRON_SECRET`.
 - [ ] Ativar o aviso por e-mail em caso de falha.
-- [ ] Conferir no histórico da tarefa que a resposta é `200`. `401` indica segredo errado.
+- [x] Conferir no histórico da tarefa que a resposta é `200`. `401` indica segredo errado.
 
 ## 6. Testar de verdade
 
