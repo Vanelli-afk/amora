@@ -11,7 +11,14 @@ export const metadata: Metadata = {
   description: "O seu cantinho de cada dia: agenda, tarefas, notas e livros.",
   applicationName: "Amora",
   appleWebApp: { capable: true, title: "Amora", statusBarStyle: "default" },
-  icons: { apple: "/icons/amora-apple-180.png" },
+  icons: {
+    icon: [
+      { url: "/icons/amora-192.png", sizes: "192x192", type: "image/png" },
+      { url: "/icons/amora-512.png", sizes: "512x512", type: "image/png" },
+    ],
+    shortcut: "/icons/amora-192.png",
+    apple: "/icons/amora-apple-180.png",
+  },
   robots: { index: false, follow: false },
 };
 
