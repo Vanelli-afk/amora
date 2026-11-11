@@ -13,7 +13,7 @@ export default function PrivacidadePage() {
       <h2>O que guardamos</h2>
       <ul>
         <li>Conta: nome, e-mail, foto (opcional) e senha, armazenada só como hash.</li>
-        <li>O que você escreve: compromissos, tarefas, notas, reflexões, hábitos e livros.</li>
+        <li>O que você escreve: compromissos, tarefas, notas, reflexões, hábitos, livros, finanças (lançamentos, contas, categorias e orçamentos) e dados dos seus pets. Os textos ficam cifrados; os valores em dinheiro e as datas ficam em claro no banco para que os totais funcionem.</li>
         <li>Técnico: sessões de acesso (aparelho e IP), para manter a conta segura.</li>
       </ul>
 

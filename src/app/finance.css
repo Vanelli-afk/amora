@@ -1,0 +1,140 @@
+/* ============ Finanças e Pets · estilos compartilhados ============
+   Usa só os tokens de globals.css; cores por categoria vêm de --cbg/--ce (classes c-*). */
+
+/* Selos de estado */
+.bdg{display:inline-flex;align-items:center;gap:4px;min-height:24px;padding:0 10px;border-radius:999px;font-size:12px;font-weight:800;line-height:1;white-space:nowrap;background:var(--surf2);color:var(--tx2);border:1.5px solid var(--line2)}
+.bdg.ok{background:var(--sage);border-color:var(--sage-e);color:var(--tx)}
+.bdg.warn{background:var(--peach);border-color:var(--peach-e);color:var(--tx)}
+.bdg.bad{background:var(--coral-soft);border-color:var(--coral);color:var(--coral-ink)}
+.bdg.info{background:var(--sky);border-color:var(--sky-e);color:var(--tx)}
+
+/* Ícone em bolha colorida */
+.ibub{display:grid;place-items:center;flex:none;width:40px;height:40px;border-radius:12px;background:var(--cbg,var(--surf2));border:1.5px solid var(--ce,var(--line));color:var(--tx)}
+.ibub.lg{width:48px;height:48px;border-radius:14px}
+.c-lav{--cbg:var(--lav);--ce:var(--lav-e)}
+
+/* Estrutura das páginas */
+.fx-stack{display:flex;flex-direction:column;gap:16px}
+.fx-cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,340px),1fr));gap:16px;align-items:start}
+.fx-cols.wide{grid-template-columns:minmax(0,1fr)}
+@media (min-width:900px){.fx-cols.wide{grid-template-columns:minmax(0,1.6fr) minmax(0,1fr)}}
+.fx-kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,200px),1fr));gap:12px}
+.fx-kpi{display:flex;flex-direction:column;gap:2px;padding:16px;border-radius:18px;background:var(--surf);box-shadow:var(--sh)}
+.fx-kpi .k{font-size:13px;font-weight:800;color:var(--tx2)}
+.fx-kpi .v{font:600 28px/1.15 var(--font-fraunces),Georgia,serif;font-variant-numeric:tabular-nums}
+.fx-kpi.big .v{font-size:36px}
+.fx-kpi .s{font-size:13px;color:var(--tx2)}
+@media (max-width:767px){.fx-kpi .v{font-size:22px}.fx-kpi.big .v{font-size:32px}.fx-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.fx-desk{display:none}
+@media (min-width:768px){.fx-desk{display:block}}
+.pos{color:var(--ok)}
+.neg{color:var(--tx)}
+.fx-month{display:inline-flex;align-items:center;gap:4px}
+.fx-month b{min-width:140px;text-align:center;font:600 18px var(--font-fraunces),serif}
+.fx-month b::first-letter{text-transform:uppercase}
+
+/* Linhas de lista (conta, lançamento, recorrente) */
+.fx-row{display:flex;align-items:center;gap:12px;min-height:64px;padding:8px 0;border-bottom:1.5px dashed var(--line);color:inherit;text-align:left;width:100%}
+.fx-row:last-child{border-bottom:0}
+a.fx-row:hover,button.fx-row:hover{background:var(--surf2);border-radius:12px}
+.fx-row .grow{flex:1;min-width:0;display:flex;flex-direction:column}
+.fx-row .amt{font-weight:800;font-variant-numeric:tabular-nums;white-space:nowrap}
+.fx-row .end{display:flex;flex-direction:column;align-items:flex-end;gap:4px}
+
+/* Lançamentos: tabela no desktop, cartões no celular */
+.tx-head,.tx-row{display:grid;grid-template-columns:minmax(0,2.4fr) minmax(0,1.5fr) minmax(0,1.1fr) minmax(0,1.2fr) 72px minmax(0,1.1fr);gap:12px;align-items:center}
+.tx-head{padding:0 10px 8px;font-size:12px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--tx3)}
+.tx-row{min-height:60px;padding:6px 10px;border-bottom:1.5px dashed var(--line);color:inherit}
+.tx-row:hover{background:var(--surf2);border-radius:12px}
+.tx-row .n{display:flex;align-items:center;gap:12px;min-width:0}
+.tx-row .t{min-width:0;display:flex;flex-direction:column}
+.tx-row .mobile-meta{display:none}
+.tx-row .amt{text-align:right;font-weight:800;font-variant-numeric:tabular-nums}
+@media (max-width:767px){
+  .tx-head{display:none}
+  .tx-row{grid-template-columns:minmax(0,1fr) auto;min-height:64px}
+  .tx-row .col-cat,.tx-row .col-acc,.tx-row .col-pay,.tx-row .col-date{display:none}
+  .tx-row .mobile-meta{display:block}
+}
+
+/* Filtros */
+.fx-filter{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,180px),1fr));gap:12px;align-items:end}
+.fx-chips{display:flex;gap:8px;flex-wrap:wrap}
+
+/* Barra de progresso com estados */
+.bar.warn>i{background:var(--peach-e)}
+.bar.bad>i{background:var(--coral)}
+.bar.ok>i{background:var(--sage-e)}
+
+/* Gráficos em SVG */
+.chart{display:block;width:100%;height:auto;overflow:visible}
+.chart text{font:700 11px var(--font-nunito),sans-serif;fill:var(--tx3)}
+.chart .gl{stroke:var(--line);stroke-dasharray:3 4}
+.chart .ln{fill:none;stroke:var(--coral);stroke-width:3;stroke-linecap:round;stroke-linejoin:round}
+.chart .ar{fill:var(--coral);opacity:.12}
+.chart .pt{fill:var(--surf);stroke:var(--coral);stroke-width:2.5}
+.chart .b-in{fill:var(--sage-e)}
+.chart .b-out{fill:var(--coral);opacity:.85}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:13px;font-weight:700;color:var(--tx2)}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px;background:var(--lg,var(--tx3))}
+.donut-wrap{display:flex;align-items:center;gap:20px;flex-wrap:wrap}
+.donut-wrap svg{flex:none;width:168px;height:168px}
+.donut-wrap ul{flex:1;min-width:150px;display:flex;flex-direction:column;gap:6px}
+.donut-wrap li{display:flex;align-items:center;gap:8px;font-size:14px}
+.donut-wrap li span:last-child{margin-left:auto;font-weight:800;font-variant-numeric:tabular-nums}
+.donut-wrap li i{width:10px;height:10px;border-radius:50%;background:var(--lg)}
+
+/* Árvore de categorias */
+.cat-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,320px),1fr));gap:16px}
+.sub-row{display:flex;align-items:center;gap:8px;min-height:44px;padding:0 4px 0 14px;border-top:1.5px dashed var(--line);color:var(--tx2);width:100%;text-align:left}
+.sub-row b{margin-left:auto;font-weight:800;font-variant-numeric:tabular-nums;color:var(--tx)}
+
+/* Aviso */
+.fx-alert{display:flex;gap:12px;align-items:flex-start;padding:14px 16px;border-radius:16px;background:var(--peach);border:1.5px solid var(--peach-e)}
+.fx-alert.bad{background:var(--coral-soft);border-color:var(--coral)}
+
+/* Seleção de contas a pagar */
+.chk{width:24px;height:24px;flex:none;accent-color:var(--coral)}
+.fx-sticky{position:sticky;bottom:calc(84px + env(safe-area-inset-bottom));z-index:4;display:flex;justify-content:center}
+@media (min-width:768px){.fx-sticky{bottom:16px}}
+
+/* Selects e textarea alinhados ao .inp */
+select.inp{appearance:auto;padding-right:10px}
+textarea.inp{padding:12px 14px;min-height:88px;resize:vertical}
+.fx-seg2{display:flex;gap:6px}
+.fx-seg2 .tab{flex:1}
+/* O .sheet é uma coluna flex com altura máxima: sem isto os campos encolhem e se sobrepõem. */
+.sheet>*,.modal>*{flex-shrink:0}
+.fx-form{display:flex;flex-direction:column;gap:14px}
+.fx-form>*{flex-shrink:0}
+/* Em formulário longo no celular, salvar e cancelar ficam sempre à vista, no pé da folha. */
+.fx-foot{position:sticky;bottom:0;z-index:2;padding:10px 0 2px;margin-top:2px;background:var(--surf)}
+.fx-form .two{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media (max-width:420px){.fx-form .two{grid-template-columns:1fr}}
+.money-inp{font:600 28px var(--font-fraunces),serif;min-height:60px}
+
+/* Pets */
+.pet-av{display:grid;place-items:center;flex:none;border-radius:50%;background:var(--cbg,var(--peach));border:2.5px solid var(--ce,var(--peach-e));overflow:hidden;color:var(--tx)}
+.pet-av img{width:100%;height:100%;object-fit:cover}
+.pet-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,280px),1fr));gap:16px}
+.pet-card{display:flex;flex-direction:column;gap:12px;padding:16px;border-radius:20px;background:var(--surf);box-shadow:var(--sh)}
+.pet-card .bdg{align-self:flex-start}
+.pet-hero{display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+.kv{display:grid;grid-template-columns:minmax(110px,160px) 1fr;gap:6px 14px;font-size:15px}
+.kv dt{font-weight:800;color:var(--tx2)}
+.kv dd{margin:0;overflow-wrap:anywhere}
+.cal7{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px}
+.cal7 .dow{text-align:center;font-size:12px;font-weight:800;color:var(--tx3);padding:4px 0}
+.cal7 .cell{min-height:76px;padding:4px;border-radius:12px;background:var(--surf2);display:flex;flex-direction:column;gap:2px;overflow:hidden;color:inherit}
+.cal7 .cell.out{opacity:.45}
+.cal7 .cell.today{box-shadow:inset 0 0 0 2px var(--coral)}
+.cal7 .cell .d{font-size:13px;font-weight:800}
+.cal7 .cell .ev{font-size:11px;font-weight:800;line-height:1.2;padding:2px 5px;border-radius:6px;background:var(--cbg,var(--sky));overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+@media (max-width:767px){.cal7 .cell{min-height:52px}.cal7 .cell .ev{font-size:0;height:6px;padding:0}}
+.date-tile{display:flex;flex-direction:column;align-items:center;justify-content:center;flex:none;width:52px;height:56px;border-radius:14px;background:var(--cbg,var(--sky));border:1.5px solid var(--ce,var(--sky-e));line-height:1.1}
+.date-tile small{font-size:11px;font-weight:800;text-transform:uppercase;color:var(--tx2)}
+.date-tile b{font:600 22px var(--font-fraunces),serif}
+.routine-check{display:flex;align-items:center;gap:12px;min-height:56px;padding:6px 0;border-bottom:1.5px dashed var(--line);width:100%;text-align:left;color:inherit}
+.routine-check:last-child{border-bottom:0}
+.routine-check.done .t{text-decoration:line-through;color:var(--tx3)}
+.routine-check .ck{flex:none}

@@ -14,10 +14,66 @@ const MAIN: { href: string; label: string; icon: IconName; match: string[] }[] =
   { href: "/tarefas", label: "Tarefas", icon: "tasks", match: ["/tarefas"] },
   { href: "/notas", label: "Notas", icon: "note", match: ["/notas"] },
   { href: "/livros", label: "Livros", icon: "book", match: ["/livros"] },
+  { href: "/financas", label: "Finanças", icon: "wallet", match: ["/financas"] },
+  { href: "/pets", label: "Pets", icon: "paw", match: ["/pets"] },
   { href: "/perfil", label: "Perfil", icon: "user", match: ["/perfil"] },
 ];
 
-const isActive = (pathname: string, match: string[]) => match.some((m) => pathname === m || pathname.startsWith(`${m}/`));
+type NavItem = { href: string; label: string; icon: IconName; match: string[]; exact?: boolean };
+
+/** Dentro de /financas e /pets, o menu muda de contexto: submenu na lateral e barra inferior própria. */
+type Section = {
+  base: string;
+  title: string;
+  items: NavItem[];
+  bottomLeft: NavItem[];
+  bottomRight: NavItem;
+  fab: { label: string; novo: string };
+  more: NavItem[];
+};
+
+const FINANCAS: Section = (() => {
+  const resumo: NavItem = { href: "/financas", label: "Resumo", icon: "home", match: ["/financas"], exact: true };
+  const analises: NavItem = { href: "/financas/analises", label: "Análises", icon: "chart", match: ["/financas/analises"] };
+  const lancamentos: NavItem = { href: "/financas/lancamentos", label: "Lançamentos", icon: "list", match: ["/financas/lancamentos"] };
+  const orcamentos: NavItem = { href: "/financas/orcamentos", label: "Orçamentos", icon: "budget", match: ["/financas/orcamentos"] };
+  const categorias: NavItem = { href: "/financas/categorias", label: "Categorias", icon: "grid", match: ["/financas/categorias"] };
+  const contas: NavItem = { href: "/financas/contas", label: "Contas a pagar", icon: "receipt", match: ["/financas/contas"] };
+  const recorrentes: NavItem = { href: "/financas/recorrentes", label: "Recorrentes", icon: "repeat", match: ["/financas/recorrentes"] };
+  return {
+    base: "/financas",
+    title: "Finanças",
+    items: [resumo, analises, lancamentos, orcamentos, categorias, contas, recorrentes],
+    bottomLeft: [resumo, lancamentos],
+    bottomRight: { href: "/financas/orcamentos", label: "Planejar", icon: "budget", match: ["/financas/orcamentos", "/financas/categorias"] },
+    fab: { label: "Novo lançamento", novo: "lancamento" },
+    more: [analises, contas, recorrentes],
+  };
+})();
+
+const PETS: Section = (() => {
+  const inicio: NavItem = { href: "/pets", label: "Visão geral", icon: "home", match: ["/pets"], exact: true };
+  const lista: NavItem = { href: "/pets/lista", label: "Meus pets", icon: "paw", match: ["/pets/lista", "/pets/novo"] };
+  const agenda: NavItem = { href: "/pets/agenda", label: "Agenda", icon: "calendar", match: ["/pets/agenda"] };
+  const gastos: NavItem = { href: "/pets/gastos", label: "Gastos", icon: "wallet", match: ["/pets/gastos"] };
+  return {
+    base: "/pets",
+    title: "Pets",
+    items: [inicio, lista, agenda, gastos],
+    bottomLeft: [{ ...inicio, label: "Início" }, lista],
+    bottomRight: agenda,
+    fab: { label: "Novo compromisso", novo: "pet-compromisso" },
+    more: [gastos],
+  };
+})();
+
+const sectionFor = (pathname: string): Section | null =>
+  [FINANCAS, PETS].find((s) => pathname === s.base || pathname.startsWith(`${s.base}/`)) ?? null;
+
+const isActive = (pathname: string, match: string[], exact = false) =>
+  match.some((m) => pathname === m || (!exact && pathname.startsWith(`${m}/`)));
+
+const itemActive = (pathname: string, item: NavItem) => isActive(pathname, item.match, item.exact);
 
 export function Logo() {
   return <span className="logo"><Icon name="bookmark" size="l" />Amora</span>;
@@ -37,6 +93,7 @@ export function Avatar({ user, large }: { user: Pick<User, "name" | "image">; la
 
 export function Sidebar({ user }: { user: User }) {
   const pathname = usePathname();
+  const section = sectionFor(pathname);
   return (
     <aside className="sb" aria-label="Navegação principal">
       <Logo />
@@ -48,6 +105,19 @@ export function Sidebar({ user }: { user: User }) {
           </TransitionLink>
         );
       })}
+      {section ? (
+        <>
+          <span className="sbh">{section.title}</span>
+          {section.items.map((item) => {
+            const active = itemActive(pathname, item);
+            return (
+              <TransitionLink key={item.href} className={`sl sub${active ? " on" : ""}`} href={item.href} aria-current={active ? "page" : undefined} title={item.label}>
+                <Icon name={item.icon} />{item.label}
+              </TransitionLink>
+            );
+          })}
+        </>
+      ) : null}
       <span className="sbh">Atalhos</span>
       <OverlayLink className="sl" params={{ novo: "compromisso" }} title="Novo item (N)">
         <Icon name="plus" />Novo item<span className="kbd">N</span>
@@ -90,22 +160,39 @@ const BOTTOM: { href: string; label: string; icon: IconName; match: string[] }[]
 export function BottomNav() {
   const pathname = usePathname();
   const [moreOpen, setMoreOpen] = useState(false);
-  const inMore = isActive(pathname, ["/notas", "/livros", "/perfil"]);
+  const section = sectionFor(pathname);
+
+  const left: NavItem[] = section ? section.bottomLeft : BOTTOM;
+  const right: NavItem = section ? section.bottomRight : { href: "/tarefas", label: "Tarefas", icon: "tasks", match: ["/tarefas"] };
+  const fab = section ? { label: section.fab.label, novo: section.fab.novo } : { label: "Novo item", novo: "compromisso" };
+  const moreItems: NavItem[] = section
+    ? section.more
+    : [
+        { href: "/notas", label: "Notas", icon: "note", match: ["/notas"] },
+        { href: "/livros", label: "Livros", icon: "book", match: ["/livros"] },
+        { href: "/financas", label: "Finanças", icon: "wallet", match: ["/financas"] },
+        { href: "/pets", label: "Pets", icon: "paw", match: ["/pets"] },
+        { href: "/perfil", label: "Perfil", icon: "user", match: ["/perfil"] },
+      ];
+  const inMore = moreItems.some((item) => itemActive(pathname, item));
+
+  const link = (item: NavItem) => {
+    const active = itemActive(pathname, item);
+    return (
+      <TransitionLink key={item.href} className={`bi${active ? " on" : ""}`} href={item.href} aria-current={active ? "page" : undefined}>
+        <Icon name={item.icon} />{item.label}
+      </TransitionLink>
+    );
+  };
 
   return (
     <>
-      <nav className="bn" aria-label="Navegação principal">
-        {BOTTOM.map((item) => (
-          <TransitionLink key={item.href} className={`bi${isActive(pathname, item.match) ? " on" : ""}`} href={item.href} aria-current={isActive(pathname, item.match) ? "page" : undefined}>
-            <Icon name={item.icon} />{item.label}
-          </TransitionLink>
-        ))}
-        <OverlayLink className="bi add" params={{ novo: "compromisso" }} aria-label="Novo item">
+      <nav className="bn" aria-label={section ? `Navegação de ${section.title}` : "Navegação principal"}>
+        {left.map(link)}
+        <OverlayLink className="bi add" params={{ novo: fab.novo }} aria-label={fab.label}>
           <span className="fab"><Icon name="plus" /></span>
         </OverlayLink>
-        <TransitionLink className={`bi${isActive(pathname, ["/tarefas"]) ? " on" : ""}`} href="/tarefas" aria-current={isActive(pathname, ["/tarefas"]) ? "page" : undefined}>
-          <Icon name="tasks" />Tarefas
-        </TransitionLink>
+        {link(right)}
         <button type="button" className={`bi${inMore ? " on" : ""}`} onClick={() => setMoreOpen(true)} aria-haspopup="dialog">
           <Icon name="more" />Mais
         </button>
@@ -114,9 +201,10 @@ export function BottomNav() {
         {moreOpen ? (
           <Overlay label="Mais opções" variant="modal" narrow onClose={() => setMoreOpen(false)}>
             <div className="nav-more" style={{ padding: "6px 0 4px" }}>
-              <TransitionLink href="/notas" onClick={() => setMoreOpen(false)}><Icon name="note" />Notas</TransitionLink>
-              <TransitionLink href="/livros" onClick={() => setMoreOpen(false)}><Icon name="book" />Livros</TransitionLink>
-              <TransitionLink href="/perfil" onClick={() => setMoreOpen(false)}><Icon name="user" />Perfil</TransitionLink>
+              {moreItems.map((item) => (
+                <TransitionLink key={item.href} href={item.href} onClick={() => setMoreOpen(false)}><Icon name={item.icon} />{item.label}</TransitionLink>
+              ))}
+              {section ? <TransitionLink href="/hoje" onClick={() => setMoreOpen(false)}><Icon name="left" />Voltar ao Amora</TransitionLink> : null}
               <button type="button" onClick={() => { setMoreOpen(false); openSearch(); }}><Icon name="search" />Buscar</button>
             </div>
           </Overlay>

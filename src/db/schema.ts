@@ -1,6 +1,6 @@
 import { sql } from "drizzle-orm";
 import {
-  bigint, boolean, customType, date, doublePrecision, index, integer, jsonb, pgEnum, pgTable, primaryKey, smallint, text,
+  type AnyPgColumn, bigint, boolean, customType, date, doublePrecision, index, integer, jsonb, pgEnum, pgTable, primaryKey, smallint, text,
   timestamp, uniqueIndex, uuid, varchar,
 } from "drizzle-orm/pg-core";
 
@@ -85,8 +85,8 @@ export const noteKindEnum = pgEnum("note_kind", ["postit", "note"]);
 export const noteColorEnum = pgEnum("note_color", ["y", "p", "m", "b", "l", "paper"]);
 export const stickerEnum = pgEnum("day_sticker", ["star", "rainbow", "moon"]);
 export const themeEnum = pgEnum("theme", ["light", "dark", "auto"]);
-export const reminderSourceEnum = pgEnum("reminder_source", ["event", "task", "standalone"]);
-export const fileKindEnum = pgEnum("file_kind", ["cover", "avatar"]);
+export const reminderSourceEnum = pgEnum("reminder_source", ["event", "task", "standalone", "bill"]);
+export const fileKindEnum = pgEnum("file_kind", ["cover", "avatar", "pet"]);
 
 export type Recurrence = { freq: "daily" | "weekly" | "monthly" | "yearly"; until?: string };
 
@@ -102,6 +102,8 @@ export const userSettings = pgTable("user_settings", {
   sleepGoalMinutes: integer("sleep_goal_minutes").notNull().default(480),
   pagesGoal: integer("pages_goal").notNull().default(20),
   booksGoal: integer("books_goal").notNull().default(12),
+  budgetAlertPct: integer("budget_alert_pct").notNull().default(85),
+  savingsGoalPct: integer("savings_goal_pct").notNull().default(40),
   notifyEvents: boolean("notify_events").notNull().default(true),
   notifyMorning: boolean("notify_morning").notNull().default(false),
   morningTime: varchar("morning_time", { length: 5 }).notNull().default("07:30"),
@@ -134,6 +136,8 @@ export const events = pgTable("events", {
   color: colorEnum("color").notNull().default("sky"),
   recurrence: jsonb("recurrence").$type<Recurrence>(),
   reminderMinutes: integer("reminder_minutes"),
+  // Compromisso de um pet: aparece no calendário como qualquer outro e some junto com o pet.
+  petId: uuid("pet_id").references((): AnyPgColumn => pets.id, { onDelete: "cascade" }),
   titleEnc: text("title_enc").notNull(),
   locationEnc: text("location_enc"),
   notesEnc: text("notes_enc"),
@@ -244,6 +248,7 @@ export const reminders = pgTable("reminders", {
   source: reminderSourceEnum("source").notNull(),
   eventId: uuid("event_id").references(() => events.id, { onDelete: "cascade" }),
   taskId: uuid("task_id").references(() => tasks.id, { onDelete: "cascade" }),
+  billId: uuid("bill_id").references((): AnyPgColumn => finBills.id, { onDelete: "cascade" }),
   // Dia e hora no fuso do usuário, com a antecedência: permitem recalcular fire_at se o fuso mudar.
   date: date("date", { mode: "string" }).notNull(),
   time: varchar("time", { length: 5 }).notNull(),
@@ -267,6 +272,185 @@ export const pushSubscriptions = pgTable("push_subscriptions", {
   auth: text("auth").notNull(),
   createdAt: createdAt(),
 }, (t) => [index("push_user_idx").on(t.userId)]);
+
+/* ---------- Finanças ---------- */
+// Valores em centavos e datas em claro, para somar e agrupar no banco; todo texto vai cifrado.
+
+export const finTypeEnum = pgEnum("fin_type", ["expense", "income"]);
+export const finAccountKindEnum = pgEnum("fin_account_kind", ["checking", "savings", "wallet", "card"]);
+export const payMethodEnum = pgEnum("fin_pay_method", ["pix", "debit", "credit", "boleto", "transfer", "cash", "auto_debit"]);
+export const finRecurringKindEnum = pgEnum("fin_recurring_kind", ["fixed", "tuition", "subscription"]);
+
+export const finAccounts = pgTable("fin_accounts", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: owner(),
+  nameEnc: text("name_enc").notNull(),
+  kind: finAccountKindEnum("kind").notNull().default("checking"),
+  openingCents: integer("opening_cents").notNull().default(0),
+  archivedAt: ts("archived_at"),
+  createdAt: createdAt(),
+}, (t) => [index("fin_accounts_user_idx").on(t.userId)]);
+
+export const finCategories = pgTable("fin_categories", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: owner(),
+  parentId: uuid("parent_id").references((): AnyPgColumn => finCategories.id, { onDelete: "cascade" }),
+  type: finTypeEnum("type").notNull().default("expense"),
+  nameEnc: text("name_enc").notNull(),
+  color: colorEnum("color").notNull().default("sky"),
+  icon: varchar("icon", { length: 16 }).notNull().default("grid"),
+  position: integer("position").notNull().default(0),
+  createdAt: createdAt(),
+}, (t) => [index("fin_categories_user_idx").on(t.userId), index("fin_categories_parent_idx").on(t.parentId)]);
+
+export const finTransactions = pgTable("fin_transactions", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: owner(),
+  type: finTypeEnum("type").notNull(),
+  amountCents: integer("amount_cents").notNull(),
+  date: date("date", { mode: "string" }).notNull(),
+  accountId: uuid("account_id").notNull().references(() => finAccounts.id, { onDelete: "cascade" }),
+  categoryId: uuid("category_id").references(() => finCategories.id, { onDelete: "set null" }),
+  payMethod: payMethodEnum("pay_method").notNull().default("pix"),
+  descriptionEnc: text("description_enc").notNull(),
+  noteEnc: text("note_enc"),
+  recurringId: uuid("recurring_id").references((): AnyPgColumn => finRecurring.id, { onDelete: "set null" }),
+  createdAt: createdAt(),
+  updatedAt: updatedAt(),
+}, (t) => [
+  index("fin_tx_user_date_idx").on(t.userId, t.date),
+  index("fin_tx_account_idx").on(t.accountId),
+  index("fin_tx_category_idx").on(t.categoryId),
+]);
+
+export const finBudgets = pgTable("fin_budgets", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: owner(),
+  categoryId: uuid("category_id").notNull().references(() => finCategories.id, { onDelete: "cascade" }),
+  limitCents: integer("limit_cents").notNull(),
+  updatedAt: updatedAt(),
+}, (t) => [uniqueIndex("fin_budgets_user_category_uq").on(t.userId, t.categoryId)]);
+
+export const finRecurring = pgTable("fin_recurring", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: owner(),
+  type: finTypeEnum("type").notNull().default("expense"),
+  kind: finRecurringKindEnum("kind").notNull().default("fixed"),
+  nameEnc: text("name_enc").notNull(),
+  amountCents: integer("amount_cents").notNull(),
+  dayOfMonth: smallint("day_of_month").notNull(),
+  categoryId: uuid("category_id").references(() => finCategories.id, { onDelete: "set null" }),
+  accountId: uuid("account_id").references(() => finAccounts.id, { onDelete: "set null" }),
+  payMethod: payMethodEnum("pay_method").notNull().default("auto_debit"),
+  startsOn: date("starts_on", { mode: "string" }).notNull(),
+  endsOn: date("ends_on", { mode: "string" }),
+  active: boolean("active").notNull().default(true),
+  createdAt: createdAt(),
+}, (t) => [index("fin_recurring_user_idx").on(t.userId)]);
+
+export const finBills = pgTable("fin_bills", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: owner(),
+  dueDate: date("due_date", { mode: "string" }).notNull(),
+  amountCents: integer("amount_cents").notNull(),
+  // Nulo nas contas geradas por uma recorrente: o nome vem dela.
+  nameEnc: text("name_enc"),
+  categoryId: uuid("category_id").references(() => finCategories.id, { onDelete: "set null" }),
+  recurringId: uuid("recurring_id").references(() => finRecurring.id, { onDelete: "cascade" }),
+  paidAt: ts("paid_at"),
+  paidOn: date("paid_on", { mode: "string" }),
+  transactionId: uuid("transaction_id").references(() => finTransactions.id, { onDelete: "set null" }),
+  createdAt: createdAt(),
+}, (t) => [
+  index("fin_bills_user_due_idx").on(t.userId, t.dueDate),
+  uniqueIndex("fin_bills_recurring_due_uq").on(t.recurringId, t.dueDate),
+]);
+
+/* ---------- Pets ---------- */
+
+export const petSpeciesEnum = pgEnum("pet_species", ["dog", "cat", "rabbit", "other"]);
+export const petExpenseCategoryEnum = pgEnum("pet_expense_category", ["food", "vet", "hygiene", "medicine", "accessories", "other"]);
+
+export const pets = pgTable("pets", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: owner(),
+  nameEnc: text("name_enc").notNull(),
+  species: petSpeciesEnum("species").notNull().default("dog"),
+  color: colorEnum("color").notNull().default("peach"),
+  breedEnc: text("breed_enc"),
+  birthDate: date("birth_date", { mode: "string" }),
+  weightGrams: integer("weight_grams"),
+  neuteredOn: date("neutered_on", { mode: "string" }),
+  microchipEnc: text("microchip_enc"),
+  allergiesEnc: text("allergies_enc"),
+  vetEnc: text("vet_enc"),
+  notesEnc: text("notes_enc"),
+  avatarFileId: uuid("avatar_file_id").references(() => files.id, { onDelete: "set null" }),
+  createdAt: createdAt(),
+  updatedAt: updatedAt(),
+}, (t) => [index("pets_user_idx").on(t.userId)]);
+
+export const petVaccines = pgTable("pet_vaccines", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: owner(),
+  petId: uuid("pet_id").notNull().references(() => pets.id, { onDelete: "cascade" }),
+  nameEnc: text("name_enc").notNull(),
+  doneOn: date("done_on", { mode: "string" }),
+  nextOn: date("next_on", { mode: "string" }),
+  eventId: uuid("event_id").references(() => events.id, { onDelete: "set null" }),
+  createdAt: createdAt(),
+}, (t) => [index("pet_vaccines_pet_idx").on(t.petId), index("pet_vaccines_user_next_idx").on(t.userId, t.nextOn)]);
+
+export const petMedicines = pgTable("pet_medicines", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: owner(),
+  petId: uuid("pet_id").notNull().references(() => pets.id, { onDelete: "cascade" }),
+  nameEnc: text("name_enc").notNull(),
+  intervalDays: integer("interval_days"),
+  lastOn: date("last_on", { mode: "string" }),
+  nextOn: date("next_on", { mode: "string" }),
+  eventId: uuid("event_id").references(() => events.id, { onDelete: "set null" }),
+  createdAt: createdAt(),
+}, (t) => [index("pet_medicines_pet_idx").on(t.petId), index("pet_medicines_user_next_idx").on(t.userId, t.nextOn)]);
+
+export const petVisits = pgTable("pet_visits", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: owner(),
+  petId: uuid("pet_id").notNull().references(() => pets.id, { onDelete: "cascade" }),
+  date: date("date", { mode: "string" }).notNull(),
+  titleEnc: text("title_enc").notNull(),
+  noteEnc: text("note_enc"),
+}, (t) => [index("pet_visits_pet_idx").on(t.petId)]);
+
+export const petRoutines = pgTable("pet_routines", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: owner(),
+  petId: uuid("pet_id").notNull().references(() => pets.id, { onDelete: "cascade" }),
+  nameEnc: text("name_enc").notNull(),
+  icon: varchar("icon", { length: 16 }).notNull().default("paw"),
+  times: jsonb("times").$type<string[]>().notNull().default([]),
+  weekdays: integer("weekdays").notNull().default(127),
+  active: boolean("active").notNull().default(true),
+  createdAt: createdAt(),
+}, (t) => [index("pet_routines_pet_idx").on(t.petId), index("pet_routines_user_idx").on(t.userId)]);
+
+export const petRoutineLogs = pgTable("pet_routine_logs", {
+  routineId: uuid("routine_id").notNull().references(() => petRoutines.id, { onDelete: "cascade" }),
+  userId: owner(),
+  date: date("date", { mode: "string" }).notNull(),
+  time: varchar("time", { length: 5 }).notNull().default(""),
+}, (t) => [primaryKey({ columns: [t.routineId, t.date, t.time] }), index("pet_routine_logs_user_date_idx").on(t.userId, t.date)]);
+
+export const petExpenses = pgTable("pet_expenses", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: owner(),
+  petId: uuid("pet_id").notNull().references(() => pets.id, { onDelete: "cascade" }),
+  category: petExpenseCategoryEnum("category").notNull().default("other"),
+  amountCents: integer("amount_cents").notNull(),
+  date: date("date", { mode: "string" }).notNull(),
+  titleEnc: text("title_enc").notNull(),
+  createdAt: createdAt(),
+}, (t) => [index("pet_expenses_user_date_idx").on(t.userId, t.date), index("pet_expenses_pet_idx").on(t.petId)]);
 
 export const actionLimits = pgTable("action_limits", {
   key: text("key").primaryKey(),

@@ -10,6 +10,16 @@ import { addQuote, createBook, deleteBook, deleteQuote, getBook, listBooks, list
 import { getDayEntry, saveDayEntry } from "./day";
 import { createEvent, deleteEvent, getEvent, listDayWithMonthMarks, listOccurrenceDays, listOccurrences, updateEvent, type EventInput } from "./events";
 import { exportUserData } from "./export";
+import {
+  createAccount, createBill, createCategory, createRecurring, createTransaction, deleteBill, deleteCategory, deleteRecurring, deleteTransaction,
+  ensureFinanceDefaults, getTransaction, listAccounts, listBills, listBudgets, listCategories, listRecurring, listTransactions, markBillsPaid,
+  removeAccount, reopenBill, setBudget, updateAccount, updateBill, updateCategory, updateRecurring, updateTransaction,
+} from "./finance";
+import {
+  createExpense, createMedicine, createPet, createRoutine, createVaccine, createVisit, deleteExpense, deleteMedicine, deletePet, deleteRoutine,
+  deleteVaccine, deleteVisit, getPet, listCareForDay, listExpenses, listPets, markMedicineGiven, setPetAvatar, setRoutineDone, updateExpense,
+  updateMedicine, updatePet, updateRoutine, updateVaccine,
+} from "./pets";
 import { readUserFile, removeFile, saveImage } from "./files";
 import { archiveHabit, createHabit, listHabits, setHabitDone, updateHabit } from "./habits";
 import { createNote, deleteNote, getNote, listNotes, setNotePinned, updateNote } from "./notes";
@@ -284,5 +294,118 @@ describe("recorrência no banco", () => {
     const other = await listDayWithMonthMarks(gus, "2026-11-04", "2026-11-01", "2026-11-30");
     expect(other.occurrences).toEqual([]);
     expect(other.marked.size).toBe(0);
+  });
+});
+
+describe("isolamento: finanças e pets", () => {
+  it("Bob não lê, altera nem apaga as finanças de Alice", async () => {
+    const owner = await createUser("Dona das contas");
+    const intruder = await createUser("Intruso");
+    await ensureFinanceDefaults(owner);
+    await ensureFinanceDefaults(intruder);
+    const [account] = await listAccounts(owner);
+    const [myAccount] = await listAccounts(intruder);
+    const category = (await listCategories(owner)).find((c) => c.name === "Moradia" && !c.parentId)?.id as string;
+    const accountId = account?.id as string;
+    const input = { type: "expense" as const, amountCents: 12_300, date: "2026-11-05", accountId, categoryId: category, payMethod: "pix" as const, description: "Aluguel secreto", note: "nota secreta" };
+
+    const txId = await createTransaction(owner, input);
+    const billId = await createBill(owner, { name: "Conta secreta", amountCents: 5_000, dueDate: "2026-11-20", categoryId: null });
+    const recId = await createRecurring(owner, {
+      type: "expense", kind: "fixed", name: "Fixa secreta", amountCents: 9_000, dayOfMonth: 5, categoryId: null, accountId, payMethod: "pix",
+      startsOn: "2026-01-01", endsOn: null, active: true,
+    }, "2026-11-10");
+    await setBudget(owner, category, 100_000);
+
+    expect(await getTransaction(intruder, txId)).toBeNull();
+    expect((await listTransactions(intruder, {})).rows).toEqual([]);
+    expect(await updateTransaction(intruder, txId, { ...input, accountId: myAccount?.id as string, categoryId: null, description: "Invadido" })).toBe(false);
+    expect(await deleteTransaction(intruder, txId)).toBe(false);
+    expect(await updateAccount(intruder, accountId, { name: "Invadida", kind: "wallet", openingCents: 1 })).toBe(false);
+    expect(await removeAccount(intruder, accountId)).toBe(false);
+    expect(await updateCategory(intruder, category, { name: "Invadida", color: "rose", icon: "star" })).toBe(false);
+    expect(await deleteCategory(intruder, category)).toBe(false);
+    await expect(setBudget(intruder, category, 1)).rejects.toBeInstanceOf(UserError);
+    expect((await listBudgets(intruder)).size).toBe(0);
+    expect(await updateRecurring(intruder, recId, {
+      type: "expense", kind: "fixed", name: "Invadida", amountCents: 1, dayOfMonth: 1, categoryId: null, accountId: null, payMethod: "pix", startsOn: "2026-01-01", endsOn: null, active: true,
+    }, "2026-11-10")).toBe(false);
+    expect(await deleteRecurring(intruder, recId)).toBe(false);
+    expect((await listRecurring(intruder)).length).toBe(0);
+    expect(await updateBill(intruder, billId, { name: "Invadida", amountCents: 1, dueDate: "2026-11-21", categoryId: null })).toBe(false);
+    expect(await deleteBill(intruder, billId)).toBe(false);
+    expect(await markBillsPaid(intruder, [billId], "2026-11-10")).toBe(0);
+    expect(await reopenBill(intruder, billId)).toBe(false);
+    expect(await listBills(intruder, { paid: false })).toEqual([]);
+
+    expect(await getTransaction(owner, txId)).toMatchObject({ description: "Aluguel secreto", note: "nota secreta", amountCents: 12_300 });
+    expect((await listBills(owner, { paid: false })).map((b) => b.name)).toContain("Conta secreta");
+    expect((await listBudgets(owner)).get(category)).toBe(100_000);
+
+    const exported = JSON.stringify(await exportUserData(intruder));
+    expect(exported).not.toContain("Aluguel secreto");
+    expect(exported).not.toContain("Conta secreta");
+  });
+
+  it("Bob não lê, altera nem apaga os pets de Alice", async () => {
+    const owner = await createUser("Tutora");
+    const intruder = await createUser("Intruso 2");
+    const petId = await createPet(owner, {
+      name: "Mel", species: "dog", color: "peach", breed: "SRD secreta", birthDate: "2022-03-14", weightGrams: 12_000, neuteredOn: null,
+      microchip: "chip-secreto", allergies: null, vet: null, notes: "nota do pet",
+    });
+    const vaccine = await createVaccine(owner, petId, { name: "V10 secreta", doneOn: null, nextOn: "2026-12-01" });
+    const medicine = await createMedicine(owner, petId, { name: "Remédio secreto", intervalDays: 30, lastOn: "2026-11-01", nextOn: null });
+    const visit = await createVisit(owner, petId, { date: "2026-10-01", title: "Consulta secreta", note: null });
+    const routine = await createRoutine(owner, petId, { name: "Rotina secreta", icon: "paw", times: ["08:00"], weekdays: 127, active: true });
+    const expense = await createExpense(owner, petId, { category: "food", amountCents: 9_900, date: "2026-11-02", title: "Gasto secreto" });
+
+    expect(await getPet(intruder, petId)).toBeNull();
+    expect(await listPets(intruder)).toEqual([]);
+    const input = { name: "Invadido", species: "cat" as const, color: "rose" as const, breed: null, birthDate: null, weightGrams: null, neuteredOn: null, microchip: null, allergies: null, vet: null, notes: null };
+    expect(await updatePet(intruder, petId, input)).toBe(false);
+    expect(await setPetAvatar(intruder, petId, null)).toBe(false);
+    expect(await updateVaccine(intruder, vaccine, { name: "X", doneOn: null, nextOn: null })).toBe(false);
+    expect(await deleteVaccine(intruder, vaccine)).toBe(false);
+    expect(await updateMedicine(intruder, medicine, { name: "X", intervalDays: null, lastOn: null, nextOn: null })).toBe(false);
+    expect(await markMedicineGiven(intruder, medicine, "2026-11-10")).toBe(false);
+    expect(await deleteMedicine(intruder, medicine)).toBe(false);
+    expect(await deleteVisit(intruder, visit)).toBe(false);
+    expect(await updateRoutine(intruder, routine, { name: "X", icon: "paw", times: [], weekdays: 127, active: true })).toBe(false);
+    expect(await setRoutineDone(intruder, routine, "2026-11-10", "08:00", true)).toBe(false);
+    expect(await deleteRoutine(intruder, routine)).toBe(false);
+    await expect(updateExpense(intruder, expense, petId, { category: "other", amountCents: 1, date: "2026-11-02", title: "X" })).rejects.toBeInstanceOf(UserError);
+    expect(await deleteExpense(intruder, expense)).toBe(false);
+    expect(await deletePet(intruder, petId)).toBe(false);
+    expect(await listExpenses(intruder)).toEqual([]);
+    expect(await listCareForDay(intruder, "2026-11-10")).toEqual([]);
+
+    expect(await getPet(owner, petId)).toMatchObject({ name: "Mel", microchip: "chip-secreto" });
+    expect((await listCareForDay(owner, "2026-11-10")).map((c) => [c.name, c.done])).toEqual([["Rotina secreta", false]]);
+    expect((await listExpenses(owner)).map((e) => e.title)).toEqual(["Gasto secreto"]);
+
+    const exported = JSON.stringify(await exportUserData(intruder));
+    expect(exported).not.toContain("chip-secreto");
+    expect(exported).not.toContain("Gasto secreto");
+    expect(JSON.stringify(await exportUserData(owner))).toContain("Remédio secreto");
+  });
+
+  it("exclusão de conta apaga, em cascata, finanças e pets", async () => {
+    const dora = await createUser("Dora");
+    await ensureFinanceDefaults(dora);
+    const [account] = await listAccounts(dora);
+    await createTransaction(dora, { type: "expense", amountCents: 100, date: "2026-11-05", accountId: account?.id as string, categoryId: null, payMethod: "pix", description: "x", note: null });
+    await createBill(dora, { name: "b", amountCents: 100, dueDate: "2026-11-20", categoryId: null });
+    const petId = await createPet(dora, { name: "Rex", species: "dog", color: "sky", breed: null, birthDate: null, weightGrams: null, neuteredOn: null, microchip: null, allergies: null, vet: null, notes: null });
+    await createVaccine(dora, petId, { name: "V", doneOn: null, nextOn: "2026-12-01" });
+    await createExpense(dora, petId, { category: "food", amountCents: 100, date: "2026-11-02", title: "x" });
+    await createAccount(dora, { name: "Extra", kind: "wallet", openingCents: 0 });
+    await createCategory(dora, { name: "Nova", color: "sky", icon: "star", type: "expense", parentId: null });
+
+    await db.delete(schema.user).where(eq(schema.user.id, dora));
+
+    for (const table of [schema.finAccounts, schema.finCategories, schema.finTransactions, schema.finBills, schema.pets, schema.petVaccines, schema.petExpenses, schema.events]) {
+      expect(await db.select().from(table).where(eq(table.userId, dora))).toEqual([]);
+    }
   });
 });

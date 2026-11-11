@@ -39,7 +39,7 @@ src/
   app/            rotas: (app) privadas, (auth) entrada, (publico) termos e privacidade; layouts; globals.css (base do design), amora.css (responsivo e animações)
   actions/        Server Actions; todas via defineAction (lib/action.ts)
   data/           únicas funções que tocam o banco; sempre recebem userId e cuidam da criptografia
-  components/     ui/ (primitivos), shell/, item/, dia/, calendario/, tarefas/, notas/, livros/, perfil/
+  components/     ui/ (primitivos), shell/, item/, dia/, calendario/, tarefas/, notas/, livros/, perfil/, financas/ (gráficos em SVG, formulários, `FinanceHost`), pets/ (`PetHost`)
   db/             schema.ts, index.ts, seed.ts
   lib/            auth, crypto, dates, timeline, recurrence, holidays, streak, image, allowed-emails, book-search…
   worker/         lembretes, resumos e limpezas, em desenvolvimento; em produção, a rota api/cron/tick chama o mesmo ciclo
@@ -63,6 +63,12 @@ Colunas `*_enc` guardam texto cifrado (AES-256-GCM por usuário e campo, `lib/cr
 - `habits` + `habit_logs`: a sequência (atual e recorde) é calculada, não armazenada. `habits.weekdays` é uma máscara de dias (bit 0 = domingo; 127 = todos): faltar num dia de folga não quebra a sequência (`lib/streak.ts`)
 - `books` + `book_quotes` + `reading_logs`: estante (`reading` / `next` / `finished`), progresso, nota, resenha, citações
 - `reminders`: `fire_at` em UTC; dia, hora e antecedência permitem recalcular ao trocar de fuso
+- Finanças (valores em **centavos inteiros** e datas em claro, para somar no SQL; todo texto cifrado):
+  - `fin_accounts` (saldo = `opening_cents` + entradas − saídas, calculado), `fin_categories` (`parent_id` nulo = categoria, senão subcategoria; herda tipo, cor e ícone)
+  - `fin_transactions` (receita ou despesa, forma de pagamento), `fin_budgets` (limite mensal por categoria de despesa)
+  - `fin_recurring` + `fin_bills`: o ciclo do worker gera as contas do mês e do próximo (idempotente, índice único recorrente+vencimento); pagar uma conta cria o lançamento e apagar o lançamento reabre a conta
+  - `user_settings.budget_alert_pct` e `savings_goal_pct`
+- Pets: `pets`, `pet_vaccines`, `pet_medicines`, `pet_visits`, `pet_routines` + `pet_routine_logs` (feito por dia e horário), `pet_expenses`. O compromisso de um pet é um `events` com `pet_id` (aparece no calendário e em Hoje e usa o lembrete de sempre); a próxima dose de vacina ou remédio gera um desses eventos
 - `files`: imagens em WebP, com os bytes na própria linha (`body`). Selecione `body` só ao servir o arquivo
 - `push_subscriptions`, `action_limits`
 
@@ -79,14 +85,16 @@ Colunas `*_enc` guardam texto cifrado (AES-256-GCM por usuário e campo, `lib/cr
 - Server Components por padrão; `"use client"` só onde há interação.
 - Mobile-first: layout de uma coluna, alvos de toque de pelo menos 44px, navegação por dia com gesto/atalho.
 - Paleta pastel (sky, lavender, peach, sage, rose, sand) em variáveis CSS; fundo creme, tipografia serifada para o número do dia.
+- Dinheiro é sempre `number` inteiro em centavos (`lib/money.ts`); nunca reais em ponto flutuante. Totais saem do SQL (`SUM`), não de somar linhas decifradas.
+- Finanças e Pets têm menu próprio dentro do Amora (`shell/navigation.tsx` troca o submenu e a barra inferior por rota). Os formulários abrem sobre qualquer tela por `?novo=lancamento`, `?lancamento=<id>` e `?novo=pet-compromisso`.
 - Textos da interface em português do Brasil.
 - Sem comentários óbvios; comente apenas o porquê.
 
 ## Escopo
 
-**Feito:** autenticação (e-mail/senha, Google, 2FA), visão do dia, calendário mensal e semanal, tarefas, notas, estante de livros, perfil, exportar e excluir conta, busca, lembretes com push (PWA).
+**Feito:** autenticação (e-mail/senha, Google, 2FA), visão do dia, calendário mensal e semanal, tarefas, notas, estante de livros, perfil, exportar e excluir conta, busca, lembretes com push (PWA), finanças (resumo, análises, lançamentos com filtros e CSV, orçamentos, categorias, contas a pagar, recorrentes) e pets (ficha, saúde, rotina, agenda, gastos).
 
-**Fora por enquanto:** sincronização com o Google Agenda, edição offline, RLS no Postgres.
+**Fora por enquanto:** sincronização com o Google Agenda, edição offline, RLS no Postgres, conexão com bancos (as contas são manuais), multi-moeda, fatura e parcelas de cartão, lembrete push das tarefas de rotina dos pets (a lista de cuidados do dia existe; o aviso não).
 
 ## Status atual
 
@@ -101,6 +109,8 @@ Colunas `*_enc` guardam texto cifrado (AES-256-GCM por usuário e campo, `lib/cr
 Implementado, mas sem verificação de ponta a ponta. Não tratar como pronto para produção:
 
 - **Notificação chegando de verdade:** só a lógica de envio foi testada, porque o navegador automatizado bloqueia notificações. Falta testar em um Chrome real: ativar em Perfil › Notificações › Neste aparelho, com `npm run worker` rodando, e criar um lembrete para daqui a 2 minutos. No celular, exige HTTPS; no iPhone, o app adicionado à Tela de Início.
+- **Aviso de conta a pagar e de vacina/compromisso de pet:** a lógica (agendar às 9h do vencimento, enviar) tem teste de unidade e de integração, mas o push real não foi visto num aparelho. Mesma verificação do item acima.
+- **Finanças e Pets em produção:** as migrações `0007` ainda não foram aplicadas no Supabase; rode `npm run db:migrate` com a `DATABASE_URL` de produção antes do deploy e depois `npm run test:e2e:prod`.
 - **Busca de livros:** não testada com a Open Library nem com o Google Books de verdade, incluindo o download de capas.
 - **Login com Google:** faltam as credenciais; o botão fica oculto sem elas.
 - **Envio real de e-mail:** nenhum SMTP foi testado; em desenvolvimento, os links saem no log do servidor.

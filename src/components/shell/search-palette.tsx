@@ -12,7 +12,7 @@ const EVENT = "amora:buscar";
 export const openSearch = () => window.dispatchEvent(new Event(EVENT));
 
 const ICONS: Record<SearchHit["kind"], IconName> = {
-  evento: "calendar", tarefa: "tasks", nota: "note", livro: "book", dia: "sun",
+  evento: "calendar", tarefa: "tasks", nota: "note", livro: "book", dia: "sun", lançamento: "wallet", pet: "paw",
 };
 
 export function SearchPalette() {
@@ -75,7 +75,7 @@ export function SearchPalette() {
           <div className="palette-list" aria-live="polite">
             {state === "error" ? <p className="sm t2" style={{ padding: 12 }}>Não foi possível buscar agora.</p> : null}
             {state === "idle" && query.trim().length >= 2 && !hits.length ? <p className="sm t2" style={{ padding: 12 }}>Nada encontrado para “{query.trim()}”.</p> : null}
-            {query.trim().length < 2 ? <p className="sm t2" style={{ padding: 12 }}>Procure em compromissos, tarefas, notas, livros e reflexões.</p> : null}
+            {query.trim().length < 2 ? <p className="sm t2" style={{ padding: 12 }}>Procure em compromissos, tarefas, notas, livros, reflexões, lançamentos e pets.</p> : null}
             {hits.map((hit, index) => (
               <Link key={`${hit.href}-${index}`} className="palette-item" href={hit.href} onClick={close}>
                 <Icon name={ICONS[hit.kind]} className="t2" />

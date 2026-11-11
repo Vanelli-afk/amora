@@ -9,6 +9,8 @@ import { DayTasks } from "@/components/tarefas/day-tasks";
 import { Icon, RainbowArt, SparkleArt } from "@/components/ui/icon";
 import { OverlayLink } from "@/components/ui/links";
 import { getDayEntry } from "@/data/day";
+import { billsDueOn } from "@/data/finance";
+import { formatBRL } from "@/lib/money";
 import { listDayWithMonthMarks } from "@/data/events";
 import { listHabits } from "@/data/habits";
 import { listDayNotes } from "@/data/notes";
@@ -31,13 +33,14 @@ export async function DayView({ userId, date, settings }: { userId: string; date
   const firstOfMonth = `${month}-01`;
   const lastOfMonth = addDays(`${addMonths(month, 1)}-01`, -1);
 
-  const [entry, { occurrences: events, marked }, tasks, notes, habits, reminders] = await Promise.all([
+  const [entry, { occurrences: events, marked }, tasks, notes, habits, reminders, bills] = await Promise.all([
     getDayEntry(userId, date),
     listDayWithMonthMarks(userId, date, firstOfMonth, lastOfMonth),
     listTasksForDay(userId, date, today),
     listDayNotes(userId, date),
     listHabits(userId, today),
     listStandaloneReminders(userId, date),
+    billsDueOn(userId, date),
   ]);
 
   const { d } = parseDay(date);
@@ -106,6 +109,23 @@ export async function DayView({ userId, date, settings }: { userId: string; date
             <DayTasks tasks={tasks} date={date} today={today}>
               <HabitsCard habits={habits} today={today} />
             </DayTasks>
+            {bills.length ? (
+              <section className="card card-tight" aria-labelledby="dia-contas">
+                <div className="cardhd">
+                  <h2 className="h2" id="dia-contas">Contas a pagar</h2>
+                  <Link className="btn btn-g" href="/financas/contas">Ver contas</Link>
+                </div>
+                <ul>
+                  {bills.map((bill) => (
+                    <li key={bill.id} className="list-row">
+                      <span className="ibub c-sand"><Icon name="receipt" /></span>
+                      <span className="f1 b ell">{bill.name}</span>
+                      <span className="num b">{formatBRL(bill.amountCents)}</span>
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            ) : null}
             <section className="card card-tight">
               <div className="cardhd">
                 <h2 className="h2">Notas e pensamentos</h2>

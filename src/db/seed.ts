@@ -5,7 +5,14 @@ import { eq } from "drizzle-orm";
 import { addQuote, createBook, setProgress, updateBook } from "@/data/books";
 import { saveDayEntry } from "@/data/day";
 import { createEvent, type EventInput } from "@/data/events";
+import {
+  createAccount, createBill, createRecurring, createTransaction, ensureFinanceDefaults, listAccounts, listCategories, setBudget,
+} from "@/data/finance";
 import { createHabit, setHabitDone } from "@/data/habits";
+import {
+  createAppointment, createExpense, createMedicine, createPet, createRoutine, createVaccine, createVisit,
+} from "@/data/pets";
+import { weekdaysMask } from "@/lib/streak";
 import { createNote } from "@/data/notes";
 import { createTask, setTaskDone } from "@/data/tasks";
 import { addDays } from "@/lib/dates";
@@ -175,7 +182,108 @@ async function main() {
       .onConflictDoNothing();
   }
 
+  await seedFinance(userId);
+  await seedPets(userId);
+
   console.log(`Conta de demonstração pronta: ${EMAIL} / ${PASSWORD}`);
+}
+
+/** Finanças com os números das pranchas: novembro de 2026, seis categorias com limite e as recorrentes. */
+async function seedFinance(userId: string) {
+  const DAY = "2026-11-10";
+  await ensureFinanceDefaults(userId);
+  const [main] = await listAccounts(userId);
+  if (!main) return;
+  const savings = await createAccount(userId, { name: "Poupança", kind: "savings", openingCents: 3_200_00 });
+  const wallet = await createAccount(userId, { name: "Carteira", kind: "wallet", openingCents: 422_00 });
+  const cats = await listCategories(userId);
+  const cat = (name: string) => cats.find((c) => c.name === name)?.id ?? null;
+
+  const tx = (date: string, type: "expense" | "income", cents: number, description: string, category: string, payMethod: "pix" | "debit" | "credit" | "boleto" | "transfer" | "cash" | "auto_debit", accountId = main.id) =>
+    createTransaction(userId, { type, amountCents: cents, date, accountId, categoryId: cat(category), payMethod, description, note: null });
+  await tx("2026-11-10", "expense", 212_40, "Mercado do bairro", "Supermercado", "credit");
+  await tx("2026-11-10", "expense", 94_50, "Farmácia da esquina", "Farmácia", "pix");
+  await tx("2026-11-09", "expense", 68_90, "Jantar com a Bia", "Restaurantes e delivery", "debit");
+  await tx("2026-11-08", "expense", 180_00, "Combustível", "Combustível", "debit");
+  await tx("2026-11-07", "income", 1_350_00, "Freela: identidade visual", "Trabalho extra", "pix");
+  await tx("2026-11-07", "expense", 119_90, "Internet", "Contas da casa", "auto_debit");
+  await tx("2026-11-05", "income", 6_500_00, "Salário", "Salário", "transfer");
+  await tx("2026-11-05", "expense", 1_850_00, "Aluguel", "Aluguel", "transfer");
+  await tx("2026-11-03", "expense", 389_00, "Plano de saúde", "Plano de saúde", "boleto");
+  await tx("2026-11-02", "expense", 159_00, "Curso de inglês", "Curso", "credit");
+  await tx("2026-11-02", "expense", 57_30, "Cinema", "Cinema", "cash", wallet);
+  await tx("2026-11-01", "expense", 80_00, "Livraria", "Livraria", "debit");
+  await tx("2026-10-05", "income", 6_500_00, "Salário", "Salário", "transfer");
+  await tx("2026-10-05", "expense", 1_850_00, "Aluguel", "Aluguel", "transfer");
+  await tx("2026-10-18", "expense", 2_100_00, "Compras do mês", "Supermercado", "credit");
+  await tx("2026-09-05", "income", 6_500_00, "Salário", "Salário", "transfer");
+  await tx("2026-09-12", "expense", 1_600_00, "Compras do mês", "Supermercado", "credit");
+  await tx("2026-11-04", "income", 200_00, "Rendimento da poupança", "Trabalho extra", "transfer", savings);
+
+  for (const [name, cents] of [["Moradia", 2_400_00], ["Saúde", 600_00], ["Transporte", 500_00], ["Educação", 200_00], ["Alimentação", 1_200_00], ["Lazer", 300_00]] as const) {
+    const id = cat(name);
+    if (id) await setBudget(userId, id, cents);
+  }
+
+  const rec = (name: string, cents: number, day: number, category: string | null, kind: "fixed" | "tuition" | "subscription", type: "expense" | "income" = "expense") =>
+    createRecurring(userId, {
+      type, kind, name, amountCents: cents, dayOfMonth: day, categoryId: category ? cat(category) : null, accountId: main.id,
+      // Começa hoje: os dias que já passaram neste mês têm lançamento próprio e não viram conta atrasada.
+      payMethod: type === "income" ? "transfer" : "auto_debit", startsOn: DAY, endsOn: null, active: true,
+    }, DAY);
+  await rec("Salário", 6_500_00, 5, "Salário", "fixed", "income");
+  await rec("Aluguel", 1_850_00, 5, "Aluguel", "fixed");
+  await rec("Plano de saúde", 389_00, 3, "Plano de saúde", "fixed");
+  await rec("Internet", 119_90, 7, "Contas da casa", "fixed");
+  await rec("Condomínio", 420_00, 14, "Contas da casa", "fixed");
+  await rec("Seguro do carro", 214_00, 20, "Transporte", "fixed");
+  await rec("Curso de inglês", 159_00, 2, "Curso", "tuition");
+  await rec("Streaming de vídeo", 39_90, 12, "Assinaturas", "subscription");
+  await rec("Streaming de música", 21_90, 18, "Assinaturas", "subscription");
+  await rec("Armazenamento em nuvem", 14_90, 25, "Assinaturas", "subscription");
+
+  await createBill(userId, { name: "IPTU · parcela 6 de 10", amountCents: 148_00, dueDate: "2026-11-08", categoryId: cat("Moradia") });
+  await createBill(userId, { name: "Energia elétrica", amountCents: 187_45, dueDate: "2026-11-12", categoryId: cat("Contas da casa") });
+  await createBill(userId, { name: "Água e esgoto", amountCents: 96_30, dueDate: "2026-11-17", categoryId: cat("Contas da casa") });
+}
+
+/** Mel, Tom e Pipoca, como nas pranchas de Pets. */
+async function seedPets(userId: string) {
+  const base = { weightGrams: null, neuteredOn: null, microchip: null, allergies: null, vet: null, notes: null, breed: null, birthDate: null };
+  const mel = await createPet(userId, {
+    ...base, name: "Mel", species: "dog", color: "peach", breed: "SRD caramelo", birthDate: "2022-03-14", weightGrams: 12_400, neuteredOn: "2023-06-10",
+    microchip: "985 112 004 567 890", allergies: "Frango (alimentar)", vet: "Dra. Helena Costa",
+    notes: "Tem medo de trovões e fogos. Adora petisco de maçã. Não pode comer ração com frango.",
+  });
+  const tom = await createPet(userId, { ...base, name: "Tom", species: "cat", color: "lav", breed: "Cinza", birthDate: "2024-08-02", weightGrams: 4_300 });
+  const pipoca = await createPet(userId, { ...base, name: "Pipoca", species: "rabbit", color: "sage", breed: "Branca", birthDate: "2025-10-05", weightGrams: 1_900 });
+
+  await createVaccine(userId, mel, { name: "Antirrábica", doneOn: "2026-03-12", nextOn: "2027-03-12" });
+  await createVaccine(userId, mel, { name: "V10 (múltipla)", doneOn: "2025-11-20", nextOn: "2026-11-20" });
+  await createVaccine(userId, mel, { name: "Gripe canina", doneOn: "2026-05-05", nextOn: "2027-05-05" });
+  await createMedicine(userId, mel, { name: "Antipulgas", intervalDays: 30, lastOn: "2026-10-13", nextOn: null });
+  await createMedicine(userId, mel, { name: "Vermífugo", intervalDays: 90, lastOn: "2026-09-03", nextOn: null });
+  await createVisit(userId, mel, { date: "2026-09-15", title: "Check-up anual", note: "Peso 12,2 kg. Tudo certo." });
+  await createVisit(userId, mel, { date: "2026-03-02", title: "Alergia na pele", note: "Orientada troca de ração." });
+
+  const all = 127;
+  await createRoutine(userId, mel, { name: "Alimentação", icon: "bowl", times: ["07:00", "19:00"], weekdays: all, active: true });
+  await createRoutine(userId, mel, { name: "Passeios", icon: "paw", times: ["07:30", "18:00"], weekdays: all, active: true });
+  await createRoutine(userId, mel, { name: "Escovar os pelos", icon: "star", times: [], weekdays: weekdaysMask([1, 3, 5]), active: false });
+  await createRoutine(userId, tom, { name: "Trocar areia", icon: "bath", times: ["08:00"], weekdays: all, active: true });
+  await createRoutine(userId, pipoca, { name: "Feno fresco", icon: "bowl", times: ["09:00"], weekdays: all, active: true });
+
+  const none = { endTime: null, location: null, notes: null, reminderMinutes: null, recurrence: null };
+  await createAppointment(userId, mel, { ...none, title: "Banho e tosa", date: "2026-11-12", startTime: "18:00", location: "Pet shop Cheiro Bom", reminderMinutes: 60 });
+  await createAppointment(userId, tom, { ...none, title: "Retorno veterinário", date: "2026-11-23", startTime: "15:00", location: "Dra. Helena Costa", reminderMinutes: 1440 });
+
+  await createExpense(userId, mel, { category: "food", amountCents: 189_00, date: "2026-11-08", title: "Ração premium 10 kg" });
+  await createExpense(userId, mel, { category: "hygiene", amountCents: 75_00, date: "2026-11-05", title: "Banho e tosa" });
+  await createExpense(userId, tom, { category: "vet", amountCents: 180_00, date: "2026-11-03", title: "Consulta de retorno" });
+  await createExpense(userId, mel, { category: "medicine", amountCents: 64_90, date: "2026-11-02", title: "Antipulgas" });
+  await createExpense(userId, pipoca, { category: "food", amountCents: 72_00, date: "2026-11-01", title: "Feno e ração de coelho" });
+  await createExpense(userId, tom, { category: "accessories", amountCents: 48_00, date: "2026-11-01", title: "Coleira nova" });
+  await createExpense(userId, mel, { category: "food", amountCents: 200_00, date: "2026-10-20", title: "Ração e petiscos" });
 }
 
 main()

@@ -2,10 +2,14 @@ import { and, desc, eq } from "drizzle-orm";
 import { db, schema } from "@/db";
 import { decrypt, decryptOpt } from "@/lib/crypto";
 import { formatDayMonth } from "@/lib/dates";
+import { formatSigned } from "@/lib/money";
 import { bodyToText, matchesQuery, preview } from "@/lib/notes";
+import { speciesLabel } from "@/lib/pet-meta";
+import { listTransactions } from "./finance";
+import { listPets } from "./pets";
 
 export type SearchHit = {
-  kind: "evento" | "tarefa" | "nota" | "livro" | "dia";
+  kind: "evento" | "tarefa" | "nota" | "livro" | "dia" | "lançamento" | "pet";
   title: string;
   subtitle: string;
   href: string;
@@ -100,6 +104,23 @@ export async function searchEverything(userId: string, query: string): Promise<S
     const text = `${gratitude} ${reflection}`.trim();
     if (text && matchesQuery(text, query)) {
       hits.push({ kind: "dia", title: formatDayMonth(row.date), subtitle: preview(text, 70), href: `/dia/${row.date}` });
+    }
+  }
+
+  if (!full()) {
+    const found = await listTransactions(userId, { q: query }, 1, 5);
+    for (const t of found.rows) {
+      if (full()) return hits;
+      hits.push({ kind: "lançamento", title: t.description, subtitle: `${formatDayMonth(t.date)} · ${formatSigned(t.amountCents, t.type)}`, href: `/financas?lancamento=${t.id}` });
+    }
+  }
+
+  if (!full()) {
+    for (const pet of await listPets(userId)) {
+      if (full()) return hits;
+      if (matchesQuery(`${pet.name} ${pet.breed ?? ""} ${pet.notes ?? ""}`, query)) {
+        hits.push({ kind: "pet", title: pet.name, subtitle: [speciesLabel(pet.species), pet.breed].filter(Boolean).join(" · "), href: `/pets/${pet.id}` });
+      }
     }
   }
 

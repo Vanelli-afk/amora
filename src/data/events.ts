@@ -22,6 +22,8 @@ export type EventOccurrence = {
   notes: string | null;
   recurrence: Rule | null;
   reminderMinutes: number | null;
+  /** Preenchido nos compromissos de um pet. */
+  petId: string | null;
 };
 
 export type EventInput = {
@@ -34,6 +36,7 @@ export type EventInput = {
   notes: string | null;
   recurrence: Rule | null;
   reminderMinutes: number | null;
+  petId?: string | null;
 };
 
 type Row = typeof events.$inferSelect;
@@ -51,6 +54,7 @@ function toOccurrence(userId: string, row: Row, date: string): EventOccurrence {
     notes: decryptOpt(row.notesEnc, userId, "event.notes"),
     recurrence: row.recurrence ?? null,
     reminderMinutes: row.reminderMinutes,
+    petId: row.petId,
   };
 }
 
@@ -149,6 +153,7 @@ export async function createEvent(userId: string, input: EventInput): Promise<st
     color: input.color,
     recurrence: input.recurrence,
     reminderMinutes: input.reminderMinutes,
+    petId: input.petId ?? null,
     ...encryptFields(userId, input),
   }).returning();
   if (!row) throw new Error("Falha ao criar o compromisso.");
@@ -169,7 +174,7 @@ export async function updateEvent(userId: string, id: string, occurrence: string
   if (scope === "this" && row.recurrence) {
     await db.insert(eventExceptions).values({ eventId: id, userId, date: occurrence }).onConflictDoNothing();
     await syncEventReminder(userId, row);
-    await createEvent(userId, { ...input, recurrence: null });
+    await createEvent(userId, { ...input, recurrence: null, petId: row.petId });
     return true;
   }
 

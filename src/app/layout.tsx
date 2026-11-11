@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import { caveat, fraunces, nunito } from "./fonts";
 import "./globals.css";
 import "./amora.css";
+import "./finance.css";
 
 export const metadata: Metadata = {
   title: { default: "Amora", template: "%s · Amora" },

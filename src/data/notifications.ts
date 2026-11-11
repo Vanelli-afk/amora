@@ -3,7 +3,9 @@ import { db, schema } from "@/db";
 import { decrypt } from "@/lib/crypto";
 import { addDays, todayIn } from "@/lib/dates";
 import type { Rule } from "@/lib/recurrence";
+import { formatBRL } from "@/lib/money";
 import { listOccurrences } from "./events";
+import { ensureRecurringBills, getBillForReminder, scheduleBillReminders } from "./finance";
 import type { Sender } from "./push";
 import { syncEventReminder } from "./reminders";
 import { nextLocalTime } from "./settings";
@@ -77,6 +79,14 @@ export async function processDueReminders(now: Date, send: Sender): Promise<numb
     if (reminder.source === "standalone") {
       const title = reminder.titleEnc ? decrypt(reminder.titleEnc, reminder.userId, "reminder.title") : "Lembrete";
       await send(reminder.userId, { title, body: `Lembrete · ${reminder.time}`, url });
+      return;
+    }
+
+    if (reminder.source === "bill" && reminder.billId) {
+      const bill = await getBillForReminder(reminder.billId);
+      if (bill && prefs?.notifyEvents !== false) {
+        await send(reminder.userId, { title: "Conta a pagar", body: `${bill.name} · ${formatBRL(bill.amountCents)} vence hoje`, url: "/financas/contas" });
+      }
       return;
     }
 
@@ -155,6 +165,16 @@ export async function processDigests(now: Date, send: Sender): Promise<void> {
 
 /** Um ciclo de envio: o mesmo para o worker local e para a rota do cron. */
 export async function runNotificationCycle(now: Date, send: Sender): Promise<number> {
+  // Contas recorrentes e seus avisos nascem aqui, para não depender de alguém abrir o app.
+  // O dia em UTC basta: as duas rotinas olham o mês atual, o próximo e uma folga de um dia.
+  const utcDay = now.toISOString().slice(0, 10);
+  for (const step of [ensureRecurringBills, scheduleBillReminders]) {
+    try {
+      await step(utcDay);
+    } catch (error) {
+      console.error(`[notificacoes] falha nas contas a pagar: ${error instanceof Error ? error.name : "erro"}`);
+    }
+  }
   const sent = await processDueReminders(now, send);
   await processDigests(now, send);
   return sent;

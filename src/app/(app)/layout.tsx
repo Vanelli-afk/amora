@@ -1,6 +1,8 @@
 import type { ReactNode } from "react";
 import { Suspense } from "react";
+import { FinanceHost } from "@/components/financas/finance-host";
 import { ItemHost } from "@/components/item/item-host";
+import { PetHost } from "@/components/pets/pet-host";
 import { AppProviders } from "@/components/shell/app-context";
 import { RefreshOnReturn, ServiceWorker, Shortcuts, ThemeSync } from "@/components/shell/behaviors";
 import { BottomNav, MobileTop, Sidebar } from "@/components/shell/navigation";
@@ -27,6 +29,8 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
       </div>
       <BottomNav />
       <Suspense><ItemHost /></Suspense>
+      <Suspense><FinanceHost /></Suspense>
+      <Suspense><PetHost /></Suspense>
       <SearchPalette />
       <Shortcuts />
       <RefreshOnReturn />

@@ -2,6 +2,8 @@ import { eq } from "drizzle-orm";
 import { db, schema } from "@/db";
 import { decrypt, decryptOpt } from "@/lib/crypto";
 import { listBooks } from "./books";
+import { exportFinance } from "./finance";
+import { exportPets } from "./pets";
 import { listNotes } from "./notes";
 
 /** Tudo o que o usuário escreveu, decifrado, para a portabilidade prevista na LGPD. */
@@ -60,6 +62,8 @@ export async function exportUserData(userId: string) {
       citacoes: quotes.filter((q) => q.bookId === b.id).map((q) => ({ texto: decrypt(q.textEnc, userId, "book.quote"), pagina: q.page })),
       leitura: readingLogs.filter((l) => l.bookId === b.id).map((l) => ({ data: l.date, paginas: l.pages })),
     })),
+    financas: await exportFinance(userId),
+    pets: await exportPets(userId),
     lembretes: reminders.filter((r) => r.source === "standalone").map((r) => ({
       data: r.date, hora: r.time,
       titulo: r.titleEnc ? decrypt(r.titleEnc, userId, "reminder.title") : null,
